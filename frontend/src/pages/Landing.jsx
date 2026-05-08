@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Activity, ShieldAlert, FileSearch, HelpCircle, CheckCircle, Brain } from 'lucide-react';
+import { Activity, ShieldAlert, FileSearch, HelpCircle, CheckCircle, Brain, Code2, GitCompare, Download, SunMoon, Sparkles } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 const Landing = () => {
@@ -81,9 +81,34 @@ const Landing = () => {
               description="Rates how clean and readable your code is, helping you write maintainable software."
             />
             <FeatureCard 
+              icon={<Code2 className="w-8 h-8 text-cyan-400" />}
+              title="Syntax-Highlighted Editor"
+              description="Full CodeMirror editor with syntax highlighting for JavaScript, Python, Java, C, and C++."
+            />
+            <FeatureCard 
+              icon={<Sparkles className="w-8 h-8 text-amber-400" />}
+              title="Beginner & Advanced Modes"
+              description="Switch between simplified learning-first feedback and deep technical analysis with ML insights."
+            />
+            <FeatureCard 
               icon={<HelpCircle className="w-8 h-8 text-purple-400" />}
               title="Step-by-Step Guidance"
-              description="Explains issues and improvements one step at a time, hiding the final code by default."
+              description="Expandable issue cards and improvement steps — learn at your own pace before seeing the fix."
+            />
+            <FeatureCard 
+              icon={<GitCompare className="w-8 h-8 text-emerald-400" />}
+              title="Before vs After Diff"
+              description="Side-by-side code comparison highlighting exactly what changed with added and removed lines."
+            />
+            <FeatureCard 
+              icon={<Download className="w-8 h-8 text-blue-400" />}
+              title="PDF Report Download"
+              description="Export a professional analysis report with scores, issues, suggestions, and optimized code."
+            />
+            <FeatureCard 
+              icon={<SunMoon className="w-8 h-8 text-orange-400" />}
+              title="Light & Dark Mode"
+              description="Fully themed interface with smooth transitions — your preference is saved automatically."
             />
             <FeatureCard 
               icon={<Brain className="w-8 h-8 text-pink-400" />}

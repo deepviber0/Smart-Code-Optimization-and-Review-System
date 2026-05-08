@@ -1,313 +1,520 @@
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTableModule from 'jspdf-autotable';
+
+const autoTable = autoTableModule.default || autoTableModule.autoTable || autoTableModule;
 
 const generateReport = ({ code, language, results, analysisMode }) => {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  let y = 20;
+  try {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const contentWidth = pageWidth - margin * 2;
+    let y = 0;
 
-  // ───────── Color Palette ─────────
-  const colors = {
-    primary: [99, 102, 241],
-    dark: [15, 15, 15],
-    text: [55, 65, 81],
-    lightBg: [243, 244, 246],
-    success: [34, 197, 94],
-    warning: [245, 158, 11],
-    error: [239, 68, 68],
-    white: [255, 255, 255],
-  };
+    // ─────────────────────────────────────────────
+    //  Color Palette
+    // ─────────────────────────────────────────────
+    const C = {
+      primary:    [99, 102, 241],
+      primaryDk:  [79, 70, 229],
+      dark:       [17, 24, 39],
+      darkSurface:[31, 41, 55],
+      text:       [55, 65, 81],
+      textLight:  [107, 114, 128],
+      lightBg:    [243, 244, 246],
+      lighterBg:  [249, 250, 251],
+      success:    [22, 163, 74],
+      warning:    [217, 119, 6],
+      error:      [220, 38, 38],
+      white:      [255, 255, 255],
+      border:     [229, 231, 235],
+    };
 
-  // ───────── Helper Functions ─────────
-  const addSectionTitle = (title) => {
-    if (y > 260) {
-      doc.addPage();
-      y = 20;
-    }
-    doc.setFillColor(...colors.primary);
-    doc.roundedRect(14, y - 2, pageWidth - 28, 10, 2, 2, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(...colors.white);
-    doc.text(title, 18, y + 5);
-    doc.setTextColor(...colors.text);
-    y += 16;
-  };
+    const scoreColor = (val) => {
+      if (val >= 80) return C.success;
+      if (val >= 50) return C.warning;
+      return C.error;
+    };
 
-  const addKeyValue = (key, value) => {
-    if (y > 275) {
-      doc.addPage();
-      y = 20;
-    }
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text(`${key}:`, 18, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(String(value), 18 + doc.getTextWidth(`${key}: `), y);
-    y += 7;
-  };
+    const scoreLabel = (val) => {
+      if (val >= 90) return 'Excellent';
+      if (val >= 80) return 'Great';
+      if (val >= 70) return 'Good';
+      if (val >= 50) return 'Needs Work';
+      return 'Poor';
+    };
 
-  // ───────── Header ─────────
-  doc.setFillColor(...colors.dark);
-  doc.rect(0, 0, pageWidth, 45, 'F');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.setTextColor(...colors.white);
-  doc.text('Smart Code Review', pageWidth / 2, 18, { align: 'center' });
-
-  doc.setFontSize(11);
-  doc.setTextColor(161, 161, 170);
-  doc.text('AI-Powered Code Analysis Report', pageWidth / 2, 27, { align: 'center' });
-
-  doc.setFontSize(9);
-  doc.setTextColor(113, 113, 122);
-  const timestamp = new Date().toLocaleString();
-  doc.text(`Generated: ${timestamp}  •  Language: ${language.toUpperCase()}  •  Mode: ${analysisMode}`, pageWidth / 2, 36, { align: 'center' });
-
-  y = 55;
-
-  // ───────── Overall Score ─────────
-  addSectionTitle('Quality Score');
-
-  const score = results.score.overall;
-  const scoreColor = score >= 80 ? colors.success : score >= 50 ? colors.warning : colors.error;
-
-  doc.setFillColor(...colors.lightBg);
-  doc.roundedRect(14, y - 2, pageWidth - 28, 28, 3, 3, 'F');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(36);
-  doc.setTextColor(...scoreColor);
-  doc.text(`${score}`, 30, y + 18);
-
-  doc.setFontSize(12);
-  doc.setTextColor(...colors.text);
-  doc.text('/ 100', 30 + doc.getTextWidth(`${score}`) + 3, y + 18);
-
-  // Sub-scores on the right
-  doc.setFontSize(9);
-  const subScoreX = 110;
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...colors.text);
-  doc.text(`Correctness: ${results.score.correctness}`, subScoreX, y + 6);
-  doc.text(`Performance: ${results.score.performance}`, subScoreX, y + 13);
-  doc.text(`Readability: ${results.score.readability}`, subScoreX + 50, y + 6);
-  doc.text(`Best Practices: ${results.score.bestPractices}`, subScoreX + 50, y + 13);
-
-  y += 36;
-
-  // ───────── Code Summary ─────────
-  addSectionTitle('Submitted Code');
-
-  const codeLines = code.split('\n').slice(0, 30);
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(75, 85, 99);
-
-  doc.setFillColor(248, 249, 252);
-  const codeBlockHeight = Math.min(codeLines.length * 4.5 + 8, 120);
-  doc.roundedRect(14, y - 2, pageWidth - 28, codeBlockHeight, 2, 2, 'F');
-  doc.setDrawColor(229, 231, 235);
-  doc.roundedRect(14, y - 2, pageWidth - 28, codeBlockHeight, 2, 2, 'S');
-
-  codeLines.forEach((line, idx) => {
-    if (y > 275) {
-      doc.addPage();
-      y = 20;
-    }
-    const lineNum = String(idx + 1).padStart(3, ' ');
-    doc.setTextColor(156, 163, 175);
-    doc.text(lineNum, 18, y + 3);
-    doc.setTextColor(55, 65, 81);
-    const truncatedLine = line.length > 90 ? line.substring(0, 90) + '...' : line;
-    doc.text(truncatedLine, 30, y + 3);
-    y += 4.5;
-  });
-
-  if (code.split('\n').length > 30) {
-    doc.setTextColor(156, 163, 175);
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(8);
-    doc.text(`... and ${code.split('\n').length - 30} more lines`, 18, y + 3);
-    y += 6;
-  }
-
-  y += 10;
-
-  // ───────── Issues Detected ─────────
-  addSectionTitle(`Issues Detected (${results.issues.length})`);
-
-  if (results.issues.length > 0) {
-    const issueData = results.issues.map((issue, idx) => [
-      idx + 1,
-      issue.severity?.toUpperCase() || 'INFO',
-      issue.title || 'Untitled',
-      (issue.description || '').substring(0, 80) + (issue.description?.length > 80 ? '...' : ''),
-    ]);
-
-    doc.autoTable({
-      startY: y,
-      margin: { left: 14, right: 14 },
-      head: [['#', 'Severity', 'Issue', 'Description']],
-      body: issueData,
-      theme: 'grid',
-      headStyles: {
-        fillColor: colors.primary,
-        textColor: colors.white,
-        fontStyle: 'bold',
-        fontSize: 9,
-      },
-      bodyStyles: {
-        fontSize: 8,
-        textColor: colors.text,
-        cellPadding: 3,
-      },
-      columnStyles: {
-        0: { cellWidth: 10 },
-        1: { cellWidth: 22, fontStyle: 'bold' },
-        2: { cellWidth: 40 },
-        3: { cellWidth: 'auto' },
-      },
-      didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index === 1) {
-          const severity = data.cell.raw;
-          if (severity === 'CRITICAL') data.cell.styles.textColor = colors.error;
-          else if (severity === 'WARNING') data.cell.styles.textColor = colors.warning;
-          else data.cell.styles.textColor = colors.primary;
-        }
-      },
-    });
-
-    y = doc.lastAutoTable.finalY + 12;
-  } else {
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(10);
-    doc.text('No issues detected. Great code!', 18, y);
-    y += 12;
-  }
-
-  // ───────── Optimization Suggestions ─────────
-  if (y > 240) {
-    doc.addPage();
-    y = 20;
-  }
-
-  addSectionTitle('Improvement Plan');
-
-  if (results.steps && results.steps.length > 0) {
-    results.steps.forEach((step) => {
-      if (y > 255) {
+    // ─────────────────────────────────────────────
+    //  Helper: page break check
+    // ─────────────────────────────────────────────
+    const ensureSpace = (needed) => {
+      if (y + needed > pageHeight - 20) {
         doc.addPage();
         y = 20;
       }
+    };
 
-      doc.setFillColor(...colors.lightBg);
-      doc.roundedRect(14, y - 2, pageWidth - 28, 24, 2, 2, 'F');
+    // ─────────────────────────────────────────────
+    //  Helper: section header
+    // ─────────────────────────────────────────────
+    const sectionHeader = (title, icon) => {
+      ensureSpace(18);
+      doc.setFillColor(...C.primary);
+      doc.rect(margin, y, contentWidth, 10, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...C.white);
+      doc.text((icon ? icon + '  ' : '') + title, margin + 4, y + 7);
+      doc.setTextColor(...C.text);
+      y += 14;
+    };
 
+    // ─────────────────────────────────────────────
+    //  Helper: sub-section header
+    // ─────────────────────────────────────────────
+    const subHeader = (title) => {
+      ensureSpace(12);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
-      doc.setTextColor(...colors.primary);
-      doc.text(`Step ${step.number}`, 18, y + 5);
+      doc.setTextColor(...C.primaryDk);
+      doc.text(title, margin, y);
+      y += 6;
+    };
 
+    // ─────────────────────────────────────────────
+    //  Helper: draw a score bar
+    // ─────────────────────────────────────────────
+    const drawScoreBar = (label, value, xStart, barWidth) => {
+      ensureSpace(12);
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(...colors.text);
+      doc.setFontSize(9);
+      doc.setTextColor(...C.text);
+      doc.text(label, xStart, y);
+      doc.text(`${value}/100`, xStart + barWidth - 2, y, { align: 'right' });
+      y += 3;
 
-      const whatLines = doc.splitTextToSize(`What: ${step.what}`, pageWidth - 42);
-      doc.text(whatLines, 18, y + 11);
+      // Track
+      doc.setFillColor(...C.lightBg);
+      doc.rect(xStart, y, barWidth, 3, 'F');
 
-      const howLines = doc.splitTextToSize(`How: ${step.how}`, pageWidth - 42);
-      doc.text(howLines, 18, y + 17);
+      // Fill
+      const color = scoreColor(value);
+      const fillWidth = Math.max(0, (value / 100) * barWidth);
+      doc.setFillColor(...color);
+      doc.rect(xStart, y, fillWidth, 3, 'F');
 
-      y += 28;
+      y += 7;
+    };
+
+    // ─────────────────────────────────────────────
+    //  Helper: key-value row
+    // ─────────────────────────────────────────────
+    const kvRow = (key, value) => {
+      ensureSpace(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(...C.text);
+      doc.text(`${key}:`, margin + 2, y);
+      doc.setFont('helvetica', 'normal');
+      const keyWidth = doc.getTextWidth(`${key}:  `);
+      doc.text(String(value ?? 'N/A'), margin + 2 + keyWidth, y);
+      y += 6;
+    };
+
+    // ═══════════════════════════════════════════════
+    //  PAGE HEADER / TITLE BLOCK
+    // ═══════════════════════════════════════════════
+    doc.setFillColor(...C.dark);
+    doc.rect(0, 0, pageWidth, 48, 'F');
+
+    // Accent line
+    doc.setFillColor(...C.primary);
+    doc.rect(0, 48, pageWidth, 2, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(24);
+    doc.setTextColor(...C.white);
+    doc.text('Smart Code Review', pageWidth / 2, 18, { align: 'center' });
+
+    doc.setFontSize(11);
+    doc.setTextColor(161, 161, 170);
+    doc.text('AI-Powered Code Analysis Report', pageWidth / 2, 27, { align: 'center' });
+
+    doc.setFontSize(8);
+    doc.setTextColor(113, 113, 122);
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    doc.text(`${dateStr}  |  ${timeStr}  |  Language: ${language.toUpperCase()}  |  Mode: ${analysisMode.charAt(0).toUpperCase() + analysisMode.slice(1)}`, pageWidth / 2, 38, { align: 'center' });
+
+    y = 58;
+
+    // ═══════════════════════════════════════════════
+    //  1. EXECUTIVE SUMMARY
+    // ═══════════════════════════════════════════════
+    sectionHeader('Executive Summary');
+
+    const score = results.score?.overall ?? 0;
+    const sColor = scoreColor(score);
+
+    // Score display
+    doc.setFillColor(...C.lighterBg);
+    doc.rect(margin, y - 2, contentWidth, 32, 'F');
+    doc.setDrawColor(...C.border);
+    doc.rect(margin, y - 2, contentWidth, 32, 'S');
+
+    // Big score number
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(40);
+    doc.setTextColor(...sColor);
+    doc.text(`${score}`, margin + 12, y + 22);
+
+    const scoreTextWidth = doc.getTextWidth(`${score}`);
+    doc.setFontSize(14);
+    doc.setTextColor(...C.textLight);
+    doc.text('/ 100', margin + 14 + scoreTextWidth, y + 22);
+
+    // Score label
+    doc.setFontSize(12);
+    doc.setTextColor(...sColor);
+    doc.text(scoreLabel(score), margin + 14 + scoreTextWidth + 30, y + 10);
+
+    // Summary text
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...C.text);
+    const issueCount = results.issues?.length ?? 0;
+    const stepCount = results.steps?.length ?? 0;
+    const summaryText = `Analysis detected ${issueCount} issue${issueCount !== 1 ? 's' : ''} with ${stepCount} improvement suggestion${stepCount !== 1 ? 's' : ''}.`;
+    doc.text(summaryText, margin + 14 + scoreTextWidth + 30, y + 20);
+
+    y += 36;
+
+    // Sub-score bars
+    subHeader('Category Breakdown');
+    const barWidth = contentWidth - 4;
+    drawScoreBar('Correctness', results.score?.correctness ?? 0, margin + 2, barWidth);
+    drawScoreBar('Performance', results.score?.performance ?? 0, margin + 2, barWidth);
+    drawScoreBar('Readability', results.score?.readability ?? 0, margin + 2, barWidth);
+    drawScoreBar('Best Practices', results.score?.bestPractices ?? 0, margin + 2, barWidth);
+
+    y += 4;
+
+    // ═══════════════════════════════════════════════
+    //  2. SUBMITTED CODE
+    // ═══════════════════════════════════════════════
+    sectionHeader('Submitted Code');
+
+    const allCodeLines = (code || '').split('\n');
+    const codeLinesToShow = allCodeLines.slice(0, 35);
+    const totalLines = allCodeLines.length;
+
+    kvRow('Total Lines', totalLines);
+    kvRow('Language', language.charAt(0).toUpperCase() + language.slice(1));
+    y += 2;
+
+    doc.setFillColor(...C.lighterBg);
+    doc.setDrawColor(...C.border);
+    const codeBlockH = Math.min(codeLinesToShow.length * 4.2 + 6, 130);
+    doc.rect(margin, y, contentWidth, codeBlockH, 'FD');
+
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(7.5);
+    let codeY = y + 5;
+
+    codeLinesToShow.forEach((line, idx) => {
+      if (codeY > pageHeight - 22) {
+        doc.addPage();
+        codeY = 20;
+      }
+      // Line number
+      doc.setTextColor(156, 163, 175);
+      doc.text(String(idx + 1).padStart(3, ' '), margin + 2, codeY);
+      // Separator
+      doc.setTextColor(209, 213, 219);
+      doc.text('|', margin + 12, codeY);
+      // Code
+      doc.setTextColor(31, 41, 55);
+      const safeLine = (line || '').substring(0, 95) + (line.length > 95 ? '...' : '');
+      doc.text(safeLine, margin + 15, codeY);
+      codeY += 4.2;
     });
-  }
 
-  // ───────── ML Analysis Summary ─────────
-  if (results.mlStats) {
-    if (y > 240) {
-      doc.addPage();
-      y = 20;
-    }
-
-    addSectionTitle('ML Analysis Summary');
-
-    addKeyValue('Structural Quality Score', results.mlStats.structural_quality_score || 'N/A');
-    addKeyValue('Anomaly Detected', results.mlStats.is_anomalous ? 'Yes' : 'No');
-    addKeyValue('AI-Generated Probability', 
-      results.mlStats.ai_generated_probability 
-        ? `${(results.mlStats.ai_generated_probability * 100).toFixed(1)}%` 
-        : 'N/A'
-    );
-    if (results.mlStats.top_nodes) {
-      addKeyValue('Top AST Nodes', results.mlStats.top_nodes.join(', '));
+    y = codeY + 4;
+    if (totalLines > 35) {
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(8);
+      doc.setTextColor(...C.textLight);
+      doc.text(`... ${totalLines - 35} more lines not shown`, margin + 2, y);
+      y += 6;
     }
     y += 4;
-  }
 
-  // ───────── Optimized Code ─────────
-  if (results.optimizedCode) {
-    if (y > 200) {
-      doc.addPage();
-      y = 20;
+    // ═══════════════════════════════════════════════
+    //  3. ISSUES DETECTED
+    // ═══════════════════════════════════════════════
+    sectionHeader(`Issues Detected  (${issueCount})`);
+
+    if (results.issues && results.issues.length > 0) {
+      const issueRows = results.issues.map((issue, idx) => {
+        const sev = (issue.severity || 'info').toUpperCase();
+        const title = issue.title || 'Untitled Issue';
+        const desc = (issue.description || 'No description provided.');
+        const line = issue.line ? `Line ${issue.line}` : '-';
+        return [idx + 1, sev, line, title, desc];
+      });
+
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margin, right: margin },
+        head: [['#', 'Severity', 'Line', 'Issue Title', 'Description']],
+        body: issueRows,
+        theme: 'striped',
+        headStyles: {
+          fillColor: C.dark,
+          textColor: C.white,
+          fontStyle: 'bold',
+          fontSize: 8,
+          cellPadding: 3,
+        },
+        bodyStyles: {
+          fontSize: 7.5,
+          textColor: C.text,
+          cellPadding: 2.5,
+          lineColor: C.border,
+        },
+        alternateRowStyles: {
+          fillColor: C.lighterBg,
+        },
+        columnStyles: {
+          0: { cellWidth: 8, halign: 'center' },
+          1: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
+          2: { cellWidth: 14, halign: 'center' },
+          3: { cellWidth: 38 },
+          4: { cellWidth: 'auto' },
+        },
+        didParseCell: (data) => {
+          if (data.section === 'body' && data.column.index === 1) {
+            const sev = data.cell.raw;
+            if (sev === 'CRITICAL') data.cell.styles.textColor = C.error;
+            else if (sev === 'WARNING') data.cell.styles.textColor = C.warning;
+            else data.cell.styles.textColor = C.primary;
+          }
+        },
+      });
+
+      y = doc.lastAutoTable.finalY + 10;
+    } else {
+      doc.setFillColor(236, 253, 245);
+      doc.rect(margin, y, contentWidth, 10, 'F');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...C.success);
+      doc.text('✓  No issues detected — excellent code quality!', margin + 4, y + 7);
+      y += 16;
     }
 
-    addSectionTitle('Optimized Code');
+    // ═══════════════════════════════════════════════
+    //  4. IMPROVEMENT PLAN
+    // ═══════════════════════════════════════════════
+    if (results.steps && results.steps.length > 0) {
+      sectionHeader(`Improvement Plan  (${results.steps.length} steps)`);
 
-    const optLines = results.optimizedCode.split('\n').slice(0, 40);
-    doc.setFont('courier', 'normal');
-    doc.setFontSize(8);
+      results.steps.forEach((step) => {
+        ensureSpace(30);
 
-    doc.setFillColor(248, 249, 252);
-    const optBlockHeight = Math.min(optLines.length * 4.5 + 8, 140);
-    doc.roundedRect(14, y - 2, pageWidth - 28, optBlockHeight, 2, 2, 'F');
-    doc.setDrawColor(229, 231, 235);
-    doc.roundedRect(14, y - 2, pageWidth - 28, optBlockHeight, 2, 2, 'S');
+        // Step number badge
+        doc.setFillColor(...C.primary);
+        doc.circle(margin + 5, y + 3, 4, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(...C.white);
+        doc.text(String(step.number || '?'), margin + 5, y + 4.5, { align: 'center' });
 
-    optLines.forEach((line, idx) => {
-      if (y > 275) {
-        doc.addPage();
-        y = 20;
+        // What to fix
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(...C.dark);
+        const whatText = doc.splitTextToSize(step.what || '', contentWidth - 20);
+        doc.text(whatText, margin + 12, y + 4);
+        y += Math.max(8, whatText.length * 4);
+
+        // Why it matters
+        if (step.why) {
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(8);
+          doc.setTextColor(...C.textLight);
+          const whyText = doc.splitTextToSize('Why: ' + step.why, contentWidth - 16);
+          doc.text(whyText, margin + 12, y);
+          y += whyText.length * 3.5 + 1;
+        }
+
+        // How to fix
+        if (step.how) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(...C.success);
+          const howText = doc.splitTextToSize('Fix: ' + step.how, contentWidth - 16);
+          doc.text(howText, margin + 12, y);
+          y += howText.length * 3.5 + 1;
+        }
+
+        // Divider line
+        doc.setDrawColor(...C.border);
+        doc.setLineWidth(0.2);
+        doc.line(margin + 12, y + 1, margin + contentWidth - 4, y + 1);
+        y += 5;
+      });
+    }
+
+    // ═══════════════════════════════════════════════
+    //  5. ML ANALYSIS
+    // ═══════════════════════════════════════════════
+    if (results.mlStats) {
+      sectionHeader('Machine Learning Analysis');
+
+      doc.setFillColor(...C.lighterBg);
+      doc.setDrawColor(...C.border);
+      doc.rect(margin, y, contentWidth, 28, 'FD');
+
+      const colW = contentWidth / 3;
+
+      // Column 1: Structural Quality
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(...C.textLight);
+      doc.text('STRUCTURAL QUALITY', margin + colW * 0 + 6, y + 6);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.setTextColor(...scoreColor(results.mlStats.structural_quality_score || 0));
+      doc.text(String(results.mlStats.structural_quality_score ?? 'N/A'), margin + colW * 0 + 6, y + 18);
+
+      // Column 2: Anomaly Status
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(...C.textLight);
+      doc.text('ANOMALY STATUS', margin + colW * 1 + 6, y + 6);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      const isAnom = results.mlStats.is_anomalous;
+      doc.setTextColor(...(isAnom ? C.error : C.success));
+      doc.text(isAnom ? 'Detected' : 'Normal', margin + colW * 1 + 6, y + 18);
+
+      // Column 3: AI-Generated Probability
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(...C.textLight);
+      doc.text('AI-GENERATED PROB.', margin + colW * 2 + 6, y + 6);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.setTextColor(...C.dark);
+      const aiProb = results.mlStats.ai_generated_probability;
+      doc.text(aiProb != null ? `${(aiProb * 100).toFixed(0)}%` : 'N/A', margin + colW * 2 + 6, y + 18);
+
+      y += 34;
+
+      // Top AST Nodes
+      if (results.mlStats.top_nodes && results.mlStats.top_nodes.length > 0) {
+        kvRow('Top AST Node Types', results.mlStats.top_nodes.slice(0, 8).join(', '));
       }
-      const lineNum = String(idx + 1).padStart(3, ' ');
+      if (results.mlStats.total_nodes) {
+        kvRow('Total AST Nodes Parsed', results.mlStats.total_nodes);
+      }
+      y += 4;
+    }
+
+    // ═══════════════════════════════════════════════
+    //  6. OPTIMIZED CODE
+    // ═══════════════════════════════════════════════
+    if (results.optimizedCode) {
+      sectionHeader('Optimized Code');
+
+      const optLines = results.optimizedCode.split('\n').slice(0, 45);
+
+      doc.setFillColor(240, 253, 244);
+      doc.setDrawColor(187, 247, 208);
+      const optBlockH = Math.min(optLines.length * 4.2 + 6, 150);
+      doc.rect(margin, y, contentWidth, optBlockH, 'FD');
+
+      doc.setFont('courier', 'normal');
+      doc.setFontSize(7.5);
+      let optY = y + 5;
+
+      optLines.forEach((line, idx) => {
+        if (optY > pageHeight - 22) {
+          doc.addPage();
+          optY = 20;
+        }
+        // Line number
+        doc.setTextColor(134, 239, 172);
+        doc.text(String(idx + 1).padStart(3, ' '), margin + 2, optY);
+        doc.text('|', margin + 12, optY);
+        // Code in green-tinted text
+        doc.setTextColor(21, 128, 61);
+        const safeLine = (line || '').substring(0, 95) + (line.length > 95 ? '...' : '');
+        doc.text(safeLine, margin + 15, optY);
+        optY += 4.2;
+      });
+
+      y = optY + 4;
+
+      if (results.optimizedCode.split('\n').length > 45) {
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(8);
+        doc.setTextColor(...C.textLight);
+        doc.text(`... ${results.optimizedCode.split('\n').length - 45} more lines not shown`, margin + 2, y);
+        y += 6;
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    //  FOOTER ON ALL PAGES
+    // ═══════════════════════════════════════════════
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+
+      // Dark footer bar
+      doc.setFillColor(...C.dark);
+      doc.rect(0, pageHeight - 10, pageWidth, 10, 'F');
+
+      // Accent line above footer
+      doc.setFillColor(...C.primary);
+      doc.rect(0, pageHeight - 10, pageWidth, 0.5, 'F');
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
       doc.setTextColor(156, 163, 175);
-      doc.text(lineNum, 18, y + 3);
-      doc.setTextColor(34, 197, 94);
-      const truncatedLine = line.length > 90 ? line.substring(0, 90) + '...' : line;
-      doc.text(truncatedLine, 30, y + 3);
-      y += 4.5;
-    });
+      doc.text(
+        'Smart Code Optimization and Review System  —  AI-Powered Analysis',
+        pageWidth / 2,
+        pageHeight - 4,
+        { align: 'center' }
+      );
+      doc.text(
+        `Page ${i} / ${totalPages}`,
+        pageWidth - margin,
+        pageHeight - 4,
+        { align: 'right' }
+      );
+      doc.text(
+        dateStr,
+        margin,
+        pageHeight - 4
+      );
+    }
 
-    y += 10;
+    // ═══════════════════════════════════════════════
+    //  SAVE FILE
+    // ═══════════════════════════════════════════════
+    const filename = `SmartReview-Report-${language}-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.pdf`;
+    doc.save(filename);
+
+  } catch (err) {
+    console.error('PDF Generation Error:', err);
+    alert('Failed to generate PDF report. Check console for details.');
   }
-
-  // ───────── Footer ─────────
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    doc.setFillColor(...colors.dark);
-    doc.rect(0, doc.internal.pageSize.getHeight() - 12, pageWidth, 12, 'F');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(113, 113, 122);
-    doc.text(
-      'Generated by Smart Code Optimization and Review System',
-      pageWidth / 2,
-      doc.internal.pageSize.getHeight() - 5,
-      { align: 'center' }
-    );
-    doc.text(
-      `Page ${i} of ${totalPages}`,
-      pageWidth - 18,
-      doc.internal.pageSize.getHeight() - 5,
-      { align: 'right' }
-    );
-  }
-
-  // ───────── Save ─────────
-  const filename = `code-review-report-${language}-${Date.now()}.pdf`;
-  doc.save(filename);
 };
 
 export default generateReport;

@@ -71,10 +71,10 @@ return result
   };
 
   return (
-    <div className="flex-grow max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-8">
+    <div className="flex-grow max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row lg:items-start gap-8">
       
-      {/* Left Panel - Code Input */}
-      <div className="w-full lg:w-1/2 flex flex-col h-full min-h-[600px]">
+      {/* Left Panel - Code Input (sticky on desktop) */}
+      <div className="w-full lg:w-1/2 flex flex-col min-h-[600px] lg:sticky lg:top-[80px] lg:max-h-[calc(100vh-112px)]">
         {/* Editor Header */}
         <div className="bg-surface border border-border rounded-t-xl p-4 flex justify-between items-center">
           <h2 className="text-heading font-bold">Code Editor</h2>
