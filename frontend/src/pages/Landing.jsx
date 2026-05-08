@@ -2,13 +2,24 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Activity, ShieldAlert, FileSearch, HelpCircle, CheckCircle, Brain } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 const Landing = () => {
+  const { theme } = useTheme();
+
   return (
     <div className="flex-grow">
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-24 pb-32">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div 
+          className="absolute inset-0" 
+          style={{
+            backgroundImage: theme === 'dark'
+              ? 'linear-gradient(to right, rgba(128,128,128,0.07) 1px, transparent 1px), linear-gradient(to bottom, rgba(128,128,128,0.07) 1px, transparent 1px)'
+              : 'linear-gradient(to right, rgba(99,102,241,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(99,102,241,0.06) 1px, transparent 1px)',
+            backgroundSize: '24px 24px'
+          }}
+        ></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -27,13 +38,14 @@ const Landing = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/editor"
-                className="px-8 py-4 rounded-lg bg-primary text-white font-bold text-lg hover:bg-indigo-600 transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:shadow-[0_0_30px_rgba(99,102,241,0.5)]"
+                className="px-8 py-4 rounded-lg bg-primary text-white font-bold text-lg hover:bg-primary-hover transition-all"
+                style={{ boxShadow: '0 0 20px var(--shadow-glow)' }}
               >
                 Try It Now
               </Link>
               <a
                 href="#how-it-works"
-                className="px-8 py-4 rounded-lg bg-surface border border-border text-heading font-bold text-lg hover:bg-white/5 transition-all"
+                className="px-8 py-4 rounded-lg bg-surface border border-border text-heading font-bold text-lg hover:bg-surface-hover transition-all"
               >
                 See How It Works
               </a>
@@ -124,7 +136,10 @@ const FeatureCard = ({ icon, title, description }) => (
 
 const Step = ({ number, title }) => (
   <div className="flex flex-col items-center text-center w-full md:w-1/4 mb-8 md:mb-0">
-    <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xl mb-4 shadow-[0_0_15px_rgba(99,102,241,0.4)]">
+    <div 
+      className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xl mb-4"
+      style={{ boxShadow: '0 0 15px var(--shadow-glow)' }}
+    >
       {number}
     </div>
     <h4 className="text-lg font-bold text-heading">{title}</h4>

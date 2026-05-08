@@ -10,7 +10,7 @@ const About = () => {
         <h2 className="text-2xl font-bold text-heading mb-4">Our Philosophy</h2>
         <p className="text-body text-lg leading-relaxed mb-6">
           Most AI coding assistants give you the answer instantly. While convenient, this creates dependency and bypasses the learning process. 
-          <strong> Smart Code Optimization and Review System</strong> was built with a different philosophy: <em>learning-oriented feedback.</em>
+          <strong className="text-heading"> Smart Code Optimization and Review System</strong> was built with a different philosophy: <em>learning-oriented feedback.</em>
         </p>
         <p className="text-body text-lg leading-relaxed">
           We explain what's wrong, why it matters, and how to fix it before ever showing the solution. This forces understanding, building real engineering skills.
@@ -48,21 +48,21 @@ const About = () => {
         </h2>
         <div className="space-y-4">
           <div className="flex gap-4">
-            <div className="w-8 h-8 rounded bg-[#2A2A2A] text-heading flex items-center justify-center font-bold flex-shrink-0">1</div>
+            <div className="w-8 h-8 rounded bg-background text-heading flex items-center justify-center font-bold flex-shrink-0 border border-border">1</div>
             <div>
               <h4 className="font-bold text-heading">Tree-sitter AST Extraction</h4>
               <p className="text-body text-sm">Code is parsed into an Abstract Syntax Tree to extract a structural "fingerprint".</p>
             </div>
           </div>
           <div className="flex gap-4">
-            <div className="w-8 h-8 rounded bg-[#2A2A2A] text-heading flex items-center justify-center font-bold flex-shrink-0">2</div>
+            <div className="w-8 h-8 rounded bg-background text-heading flex items-center justify-center font-bold flex-shrink-0 border border-border">2</div>
             <div>
               <h4 className="font-bold text-heading">TF-IDF Vectorization</h4>
               <p className="text-body text-sm">Node sequences are converted into high-dimensional feature vectors.</p>
             </div>
           </div>
           <div className="flex gap-4">
-            <div className="w-8 h-8 rounded bg-[#2A2A2A] text-heading flex items-center justify-center font-bold flex-shrink-0">3</div>
+            <div className="w-8 h-8 rounded bg-background text-heading flex items-center justify-center font-bold flex-shrink-0 border border-border">3</div>
             <div>
               <h4 className="font-bold text-heading">Anomaly Detection</h4>
               <p className="text-body text-sm">An Isolation Forest algorithm evaluates how much the structure deviates from standard best practices.</p>

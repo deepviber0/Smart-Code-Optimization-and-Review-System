@@ -1,11 +1,13 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Code2, Menu, X } from 'lucide-react';
+import { Code2, Menu, X, Sun, Moon } from 'lucide-react';
 import { useState } from 'react';
+import { useTheme } from '../context/ThemeContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   const navLinks = [
     { name: 'Features', path: '/#features' },
@@ -29,29 +31,71 @@ const Navbar = () => {
 
           <div className="hidden md:flex items-center space-x-8">
             {navLinks.map((link) => (
-              <a 
-                key={link.name} 
-                href={link.path.startsWith('/#') ? link.path : undefined}
-                className="text-sm font-medium text-body hover:text-heading transition-colors"
-              >
-                {link.path.startsWith('/#') ? (
-                  link.name
-                ) : (
-                  <Link to={link.path} className={isActive(link.path) ? 'text-primary' : ''}>
-                    {link.name}
-                  </Link>
-                )}
-              </a>
+              link.path.startsWith('/#') ? (
+                <a 
+                  key={link.name} 
+                  href={link.path}
+                  className="text-sm font-medium text-body hover:text-heading transition-colors"
+                >
+                  {link.name}
+                </a>
+              ) : (
+                <Link 
+                  key={link.name} 
+                  to={link.path} 
+                  className={`text-sm font-medium transition-colors ${isActive(link.path) ? 'text-primary' : 'text-body hover:text-heading'}`}
+                >
+                  {link.name}
+                </Link>
+              )
             ))}
+
+            {/* Theme Toggle Button */}
+            <button
+              onClick={toggleTheme}
+              className="relative p-2 rounded-lg bg-surface border border-border hover:border-primary/50 transition-all group"
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              id="theme-toggle"
+            >
+              <div className="relative w-5 h-5">
+                <Sun 
+                  className={`absolute inset-0 w-5 h-5 text-warning transition-all duration-300 ${
+                    theme === 'light' 
+                      ? 'opacity-100 rotate-0 scale-100' 
+                      : 'opacity-0 -rotate-90 scale-0'
+                  }`} 
+                />
+                <Moon 
+                  className={`absolute inset-0 w-5 h-5 text-primary transition-all duration-300 ${
+                    theme === 'dark' 
+                      ? 'opacity-100 rotate-0 scale-100' 
+                      : 'opacity-0 rotate-90 scale-0'
+                  }`} 
+                />
+              </div>
+            </button>
+
             <Link 
               to="/editor" 
-              className="px-4 py-2 rounded-md bg-primary text-white font-medium hover:bg-indigo-600 transition-colors"
+              className="px-4 py-2 rounded-md bg-primary text-white font-medium hover:bg-primary-hover transition-colors"
             >
               Start Reviewing Code
             </Link>
           </div>
 
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center gap-3">
+            {/* Mobile Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg bg-surface border border-border"
+              id="theme-toggle-mobile"
+            >
+              {theme === 'dark' ? (
+                <Moon className="w-5 h-5 text-primary" />
+              ) : (
+                <Sun className="w-5 h-5 text-warning" />
+              )}
+            </button>
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="text-body hover:text-heading"
@@ -70,7 +114,7 @@ const Navbar = () => {
                 {link.path.startsWith('/#') ? (
                   <a
                     href={link.path}
-                    className="block px-3 py-2 rounded-md text-base font-medium text-body hover:text-heading hover:bg-white/5"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-body hover:text-heading hover:bg-surface-hover"
                     onClick={() => setIsOpen(false)}
                   >
                     {link.name}
@@ -78,7 +122,7 @@ const Navbar = () => {
                 ) : (
                   <Link
                     to={link.path}
-                    className="block px-3 py-2 rounded-md text-base font-medium text-body hover:text-heading hover:bg-white/5"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-body hover:text-heading hover:bg-surface-hover"
                     onClick={() => setIsOpen(false)}
                   >
                     {link.name}
