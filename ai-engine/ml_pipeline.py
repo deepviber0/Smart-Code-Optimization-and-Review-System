@@ -38,9 +38,26 @@ class MLAnalyzer:
         Trains models on a small set of dummy AST representations to demonstrate the pipeline.
         In production, this would load pre-trained binary models.
         """
-        good_code = ["function_declaration identifier formal_parameters block let_declaration"] * 20
-        bad_code = ["function_declaration identifier formal_parameters block var_declaration while_statement empty_statement"] * 5
-        ai_code = ["function_declaration identifier formal_parameters block try_statement catch_clause return_statement"] * 10
+        good_code = [
+            "module function_definition block expression_statement call identifier argument_list string",
+            "program variable_declaration identifier arrow_function block return_statement binary_expression",
+            "class_declaration identifier class_body method_declaration identifier block local_variable_declaration",
+            "translation_unit function_definition compound_statement declaration identifier call_expression",
+            "module import_statement function_definition parameters block if_statement comparison_operator return"
+        ] * 10
+        
+        bad_code = [
+            "module function_definition parameters block call identifier argument_list eval",
+            "program variable_declaration identifier binary_expression assignment_expression while_loop",
+            "translation_unit function_definition compound_statement call_expression gets",
+            "module function_definition block for_statement block assignment_expression call identifier append"
+        ] * 10
+        
+        ai_code = [
+            "module function_definition parameters block try_statement catch_clause return_statement",
+            "program arrow_function block try_statement catch_clause return_statement",
+            "class_declaration class_body method_declaration block try_statement catch_clause"
+        ] * 10
 
         all_ast = good_code + bad_code + ai_code
         X_vectors = self.vectorizer.fit_transform(all_ast)

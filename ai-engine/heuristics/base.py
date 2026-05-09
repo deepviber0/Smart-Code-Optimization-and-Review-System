@@ -1,19 +1,65 @@
-def analyze_base(code, tree):
+import re
+from typing import List, Dict, Any, Tuple
+
+def analyze_base(code: str, tree=None) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     issues = []
     steps = []
-    
-    # Simple check for empty blocks
-    if '{}' in code.replace(' ', '').replace('\n', ''):
-        issues.append({
-            "severity": "warning",
-            "title": "Empty block detected",
-            "description": "Empty blocks of code are often a sign of unfinished logic or can cause confusion."
-        })
-        steps.append({
-            "number": 0,
-            "what": "Remove or fill empty block",
-            "why": "Empty brackets add dead space and make code harder to maintain.",
-            "how": "Either add the missing logic inside the block, or remove the block entirely."
-        })
-        
+    lines = code.splitlines()
+
+    # GEN_BP_001: Empty blocks
+    # Matches { } with nothing but whitespace inside
+    empty_block_pattern = re.compile(r'\{\s*\}')
+    for i, line in enumerate(lines, 1):
+        if empty_block_pattern.search(line):
+            issues.append({
+                "severity": "info",
+                "title": "Empty Code Block",
+                "description": "Empty blocks can be a sign of unfinished logic or redundant syntax.",
+                "line": i,
+                "category": "readability",
+                "rule_id": "GEN_BP_001"
+            })
+
+    # GEN_BP_002: TODO/FIXME markers
+    todo_pattern = re.compile(r'\b(TODO|FIXME|HACK|XXX)\b', re.IGNORECASE)
+    for i, line in enumerate(lines, 1):
+        match = todo_pattern.search(line)
+        if match:
+            issues.append({
+                "severity": "info",
+                "title": f"Marker Detected: {match.group(1)}",
+                "description": f"Code contains a '{match.group(1)}' marker. Ensure this is addressed before production.",
+                "line": i,
+                "category": "best_practices",
+                "rule_id": "GEN_BP_002"
+            })
+
+    # GEN_BP_003: Excessive nesting (indentation check)
+    for i, line in enumerate(lines, 1):
+        indent = len(line) - len(line.lstrip())
+        # Assuming 4 spaces or 1 tab per level
+        if indent > 16: # > 4 levels deep
+             issues.append({
+                "severity": "warning",
+                "title": "Deep Code Nesting",
+                "description": "Excessive nesting depth makes code hard to read and maintain.",
+                "line": i,
+                "category": "readability",
+                "rule_id": "GEN_BP_003"
+            })
+             break # One warning per file is enough for nesting
+
+    # GEN_BP_005: Line too long
+    for i, line in enumerate(lines, 1):
+        if len(line) > 120:
+            issues.append({
+                "severity": "info",
+                "title": "Line Too Long",
+                "description": f"Line exceeds 120 characters ({len(line)} chars). Consider breaking it up.",
+                "line": i,
+                "category": "readability",
+                "rule_id": "GEN_BP_005"
+            })
+            break
+
     return issues, steps

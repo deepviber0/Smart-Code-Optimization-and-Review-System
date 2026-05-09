@@ -1,11 +1,50 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { diffLines } from 'diff';
 
 const CodeDiff = ({ originalCode, optimizedCode, language }) => {
+  const leftScrollRef = useRef(null);
+  const rightScrollRef = useRef(null);
+  const isSyncingLeft = useRef(false);
+  const isSyncingRight = useRef(false);
+
   const diffResult = useMemo(() => {
     if (!originalCode || !optimizedCode) return [];
     return diffLines(originalCode, optimizedCode);
   }, [originalCode, optimizedCode]);
+
+  // Synchronize scrolling
+  useEffect(() => {
+    const left = leftScrollRef.current;
+    const right = rightScrollRef.current;
+
+    if (!left || !right) return;
+
+    const handleLeftScroll = () => {
+      if (!isSyncingLeft.current) {
+        isSyncingRight.current = true;
+        right.scrollTop = left.scrollTop;
+        right.scrollLeft = left.scrollLeft;
+        setTimeout(() => { isSyncingRight.current = false; }, 50);
+      }
+    };
+
+    const handleRightScroll = () => {
+      if (!isSyncingRight.current) {
+        isSyncingLeft.current = true;
+        left.scrollTop = right.scrollTop;
+        left.scrollLeft = right.scrollLeft;
+        setTimeout(() => { isSyncingLeft.current = false; }, 50);
+      }
+    };
+
+    left.addEventListener('scroll', handleLeftScroll);
+    right.addEventListener('scroll', handleRightScroll);
+
+    return () => {
+      left.removeEventListener('scroll', handleLeftScroll);
+      right.removeEventListener('scroll', handleRightScroll);
+    };
+  }, [diffResult]); // Re-sync when content changes
 
   // Build line-by-line arrays for side-by-side
   const { leftLines, rightLines } = useMemo(() => {
@@ -86,13 +125,16 @@ const CodeDiff = ({ originalCode, optimizedCode, language }) => {
       {/* Side-by-Side Diff */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 border border-border rounded-xl overflow-hidden">
         {/* Left: Original */}
-        <div className="border-b lg:border-b-0 lg:border-r border-border">
+        <div className="border-b lg:border-b-0 lg:border-r border-border min-w-0">
           <div className="px-4 py-2.5 bg-error/5 border-b border-border flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-error/30"></span>
             <span className="text-sm font-semibold text-heading">Original</span>
           </div>
-          <div className="overflow-x-auto bg-codebg">
-            <pre className="text-sm font-mono leading-relaxed">
+          <div 
+            ref={leftScrollRef}
+            className="overflow-auto bg-codebg max-h-[600px] custom-scrollbar"
+          >
+            <pre className="text-sm font-mono leading-relaxed min-w-full inline-block">
               {leftLines.map((line, idx) => (
                 <div key={`left-${idx}`} className={`flex min-h-[24px] ${getLineClass(line.type)}`}>
                   <span className="w-12 flex-shrink-0 text-right pr-3 text-muted text-xs leading-[24px] select-none border-r border-border/30">
@@ -109,13 +151,16 @@ const CodeDiff = ({ originalCode, optimizedCode, language }) => {
         </div>
 
         {/* Right: Optimized */}
-        <div>
+        <div className="min-w-0">
           <div className="px-4 py-2.5 bg-success/5 border-b border-border flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-success/30"></span>
             <span className="text-sm font-semibold text-heading">Optimized</span>
           </div>
-          <div className="overflow-x-auto bg-codebg">
-            <pre className="text-sm font-mono leading-relaxed">
+          <div 
+            ref={rightScrollRef}
+            className="overflow-auto bg-codebg max-h-[600px] custom-scrollbar"
+          >
+            <pre className="text-sm font-mono leading-relaxed min-w-full inline-block">
               {rightLines.map((line, idx) => (
                 <div key={`right-${idx}`} className={`flex min-h-[24px] ${getLineClass(line.type)}`}>
                   <span className="w-12 flex-shrink-0 text-right pr-3 text-muted text-xs leading-[24px] select-none border-r border-border/30">
@@ -136,3 +181,4 @@ const CodeDiff = ({ originalCode, optimizedCode, language }) => {
 };
 
 export default CodeDiff;
+

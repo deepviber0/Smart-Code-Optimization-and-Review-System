@@ -148,7 +148,7 @@ const CodeEditor = ({ value, onChange, language }) => {
   return (
     <div
       ref={editorRef}
-      className="w-full h-full overflow-auto"
+      className="absolute inset-0 w-full h-full overflow-hidden"
       id="code-editor-container"
     />
   );

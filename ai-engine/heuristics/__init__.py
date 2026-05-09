@@ -5,6 +5,9 @@ from .java import analyze_java
 from .c_cpp import analyze_c_cpp
 
 def get_heuristics(language):
+    """
+    Returns the appropriate language-specific heuristic analyzer.
+    """
     if language == 'javascript':
         return analyze_javascript
     elif language == 'python':

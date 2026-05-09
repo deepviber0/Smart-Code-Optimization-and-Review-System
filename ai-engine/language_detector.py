@@ -1,50 +1,65 @@
 from ast_parser import parse_code
 
-# Language-specific AST node types that strongly indicate a particular language.
-# Only nodes that are UNIQUE to a grammar are listed to avoid cross-language false matches.
 LANGUAGE_FINGERPRINTS = {
-    'javascript': {
-        'program',                # JS root node (not 'translation_unit' like C/C++)
-        'variable_declaration',   # var/let/const (JS-specific node)
-        'call_expression',        # function calls (vs method_invocation in Java)
-        'member_expression',      # obj.prop (vs field_expression in C)
-        'property_identifier',    # property names (vs field_identifier in C)
-        'number',                 # numeric literals (vs number_literal in C, decimal_integer_literal in Java)
-    },
-    'python': {
+    'javascript': [
+        'program',                # JS root node
+        'variable_declaration',   # var/let/const
+        'lexical_declaration',    # let/const specific
+        'arrow_function',         # () => {}
+        'template_string',        # `string`
+        'export_statement',       # export ...
+        'object_pattern',         # {a, b} = obj
+        'array_pattern',          # [a, b] = arr
+        'statement_block',        # { ... } in JS
+    ],
+    'python': [
         'module',                 # Python root node
         'function_definition',    # def ...
-        'import_statement',       # import ...
-        'import_from_statement',  # from ... import ...
-        'integer',                # numeric literals (Python-specific)
+        'import_from_statement',  # from x import y
         'list_comprehension',     # [x for x in ...]
-    },
-    'java': {
-        'method_invocation',           # obj.method() (vs call_expression in JS)
-        'decimal_integer_literal',     # numeric literals (Java-specific)
-        'local_variable_declaration',  # type var = val (Java-specific)
+        'dictionary_comprehension',# {k:v for k,v in ...}
+        'set_comprehension',      # {x for x in ...}
+        'decorated_definition',   # @decorator
+        'with_statement',         # with open(...)
+        'keyword_argument',       # func(a=1)
+        'block',                  # Python specific block node name
+    ],
+    'java': [
+        'method_invocation',           # obj.method()
+        'decimal_integer_literal',     # Java specific naming
+        'local_variable_declaration',  # type var = val
         'class_declaration',           # class Foo {}
         'method_declaration',          # void foo() {}
-    },
-    'c': {
-        'translation_unit',       # C root node (not 'program' like JS)
-        'preproc_include',        # #include (C-specific)
-        'number_literal',         # numeric literals (C-specific)
-        'compound_statement',     # { } blocks (C-specific name)
-    },
-    'cpp': {
-        'translation_unit',       # C++ root node
-        'preproc_include',        # #include (C++-specific)
-        'number_literal',         # numeric literals (C++-specific)
-        'namespace_identifier',   # std:: (C++-specific)
-        'template_type',          # vector<int> (C++-specific)
-    }
+        'package_declaration',         # package ...
+        'import_declaration',          # import ... (Java specific node name)
+        'constructor_declaration',     # public Foo() {}
+        'try_with_resources_statement' # try (Resource r = ...) {}
+    ],
+    'c': [
+        'translation_unit',       # C/C++ root node
+        'preproc_include',        # #include
+        'preproc_def',            # #define
+        'pointer_declarator',     # int *p
+        'parameter_declaration',  # (int a, char b)
+        'struct_specifier',       # struct Foo {}
+    ],
+    'cpp': [
+        'translation_unit',       # C/C++ root node
+        'namespace_definition',   # namespace foo {}
+        'template_declaration',   # template <typename T>
+        'class_specifier',        # class Foo {}; (C++ style)
+        'visibility_label',       # public:, private:
+        'lambda_expression',      # [](){}
+    ]
 }
 
 
 def collect_node_types(tree):
     """Walks the AST and returns the set of all node types."""
     node_types = set()
+    if not tree or not tree.root_node:
+        return node_types
+        
     def walk(node):
         node_types.add(node.type)
         for child in node.children:
@@ -53,16 +68,25 @@ def collect_node_types(tree):
     return node_types
 
 
-def compute_fingerprint_score(node_types, language):
+def compute_fingerprint_score(node_types, language, tree=None):
     """
     Computes a fingerprint match score: the fraction of the language's
     fingerprint node types that appear in the parsed AST.
     """
-    fingerprints = LANGUAGE_FINGERPRINTS.get(language, set())
-    if not fingerprints:
+    fps = LANGUAGE_FINGERPRINTS.get(language, [])
+    if not fps:
         return 0.0
-    matches = node_types & fingerprints
-    return len(matches) / len(fingerprints)
+    
+    fingerprints_set = set(fps)
+    matches = node_types & fingerprints_set
+    
+    score = len(matches) / len(fingerprints_set)
+    
+    # Root node boost: if the root node type matches the expected root for the language
+    if tree and tree.root_node.type == fps[0]: # Root is always first in our list
+        score += 0.2
+        
+    return min(1.0, score)
 
 
 def detect_language_ast(code):
@@ -73,16 +97,27 @@ def detect_language_ast(code):
     best_lang = None
     best_score = -1.0
     
+    # Check for obvious markers first (Shebang or specific keywords at start)
+    code_start = code.strip()[:100]
+    if code_start.startswith(('#include', 'import std', 'using namespace')):
+        return 'cpp', 1.0
+    if code_start.startswith(('package ', 'import java.')):
+        return 'java', 1.0
+    if code_start.startswith(('import ', 'from ', 'def ')):
+        # Common in Python, but check AST to be sure
+        pass
+
     for lang in ['javascript', 'python', 'java', 'c', 'cpp']:
         tree, conf, err = parse_code(code, lang)
         if err is not None or tree is None:
             continue
             
         node_types = collect_node_types(tree)
-        fp_score = compute_fingerprint_score(node_types, lang)
+        fp_score = compute_fingerprint_score(node_types, lang, tree)
         
-        # Combined score: 40% parse confidence + 60% fingerprint match
-        combined = 0.4 * conf + 0.6 * fp_score
+        # Combined score: 20% parse confidence + 80% fingerprint match
+        # Fingerprints are stronger indicators of identity than just parsing "without errors"
+        combined = 0.2 * conf + 0.8 * fp_score
         
         if combined > best_score:
             best_score = combined
@@ -108,26 +143,28 @@ def validate_language(code, selected_language):
         sel_score = 0.0
     else:
         node_types = collect_node_types(tree)
-        fp_score = compute_fingerprint_score(node_types, selected_language)
-        sel_score = 0.4 * sel_conf + 0.6 * fp_score
+        fp_score = compute_fingerprint_score(node_types, selected_language, tree)
+        sel_score = 0.2 * sel_conf + 0.8 * fp_score
     
-    # If the selected language is the best match, no issue
-    if best_lang == selected_language:
+    # PRIORITY LOGIC:
+    # 1. If selected language has very high score (> 0.7), trust it.
+    if selected_language == best_lang or sel_score > 0.7:
+        return None, selected_language
+        
+    # 2. C and C++ overlap heavily, trust the user's choice between them if both parse reasonably well.
+    if selected_language in ['c', 'cpp'] and best_lang in ['c', 'cpp'] and sel_score > 0.3:
         return None, selected_language
     
-    # If the best detected language scores meaningfully higher
-    if best_score > sel_score + 0.05:
-        # C and C++ overlap heavily, give them leniency
-        if selected_language in ['c', 'cpp'] and best_lang in ['c', 'cpp']:
-            return None, selected_language
-            
+    # 3. Only override if the best detected language is SIGNIFICANTLY better (delta > 0.15)
+    # or the selected language is clearly wrong (sel_score < 0.25)
+    if best_score > sel_score + 0.15 or sel_score < 0.25:
         issue = {
             "severity": "critical",
             "title": "Language Mismatch Detected",
             "description": f"Selected language is {selected_language.capitalize()}, but AST analysis identified the code as {best_lang.capitalize()}.",
             "step": {
                 "what": "Correct the selected language",
-                "why": "The syntax analyzer and optimization engines are strictly language-specific. The engine has auto-corrected the language for proper analysis.",
+                "why": "The syntax analyzer and optimization engines are strictly language-specific. Analysis for the wrong language will produce invalid results.",
                 "how": f"The engine has internally corrected the language from {selected_language.capitalize()} to {best_lang.capitalize()} for this request."
             }
         }

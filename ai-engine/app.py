@@ -114,15 +114,20 @@ def analyze():
     overall_score = int(0.7 * base_score + 0.3 * ml_struct_score)
     
     # 6. Optimization Generation
-    optimized_code = optimize_code(code, selected_language)
+    optimized_code = optimize_code(code, selected_language, issues)
     
-    # Post-optimization validation (validate before adding header comment)
+    # Post-optimization validation
     _, opt_conf, opt_err = parse_code(optimized_code, selected_language)
+    
+    comment_style = "#" if selected_language == 'python' else "//"
+    
     if opt_err is not None or opt_conf < (confidence - 0.2):
-        print("Optimization introduced syntax errors. Reverting to original code.")
-        optimized_code = f"// Optimization failed. Returning original {selected_language.capitalize()} code.\n" + code
+        print(f"Optimization introduced syntax errors for {selected_language}. Reverting.")
+        optimized_code = f"{comment_style} Optimization failed. Returning original {selected_language.capitalize()} code.\n" + code
     else:
-        optimized_code = f"// Optimized Version for {selected_language.capitalize()}\n" + optimized_code
+        # Avoid double header if the optimizer already added one
+        if not optimized_code.strip().startswith(comment_style):
+            optimized_code = f"{comment_style} Optimized Version for {selected_language.capitalize()}\n" + optimized_code
     
     result = {
         "score": {

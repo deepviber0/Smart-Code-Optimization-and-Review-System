@@ -109,7 +109,7 @@ const OptimizedCode = ({ optimizedCode, originalCode, language, mode = 'beginner
             <div className="border-t border-border">
               {viewMode === 'code' ? (
                 <div className="p-4 bg-codebg">
-                  <div className="rounded-lg overflow-hidden border border-border/50">
+                  <div className="rounded-lg overflow-auto border border-border/50 max-h-[600px] min-w-0 custom-scrollbar">
                     <SyntaxHighlighter 
                       language={language} 
                       style={highlighterStyle}
