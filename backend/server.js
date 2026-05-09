@@ -37,6 +37,16 @@ app.post('/api/analyze', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Backend server running on port ${PORT}`);
+}).on('error', (err) => {
+  console.error('Server error:', err);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });

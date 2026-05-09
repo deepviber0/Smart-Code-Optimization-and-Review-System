@@ -97,6 +97,15 @@ class PythonHeuristicAnalyzer(ast.NodeVisitor):
                                        f"Modifying list '{iter_name}' while iterating over it can cause skipped elements or errors.", 
                                        sub_node, "correctness", "PY_CORR_003")
 
+        # PY_PERF_004: Nested Loops (O(n^2))
+        if len(self.loop_stack) > 1:
+            self.add_issue("critical", "Nested Loop Performance Warning", 
+                           "Nested loops detected. This may lead to O(n^2) time complexity. Consider using a dictionary for O(1) lookups.", 
+                           node, "performance", "PY_PERF_004")
+
+        # PY_PERF_005: Repeated function call in loop (e.g. range(len()))
+        # (Existing PY_PERF_002 covers range(len))
+
         self.generic_visit(node)
         self.loop_stack.pop()
 

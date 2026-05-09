@@ -39,11 +39,13 @@ const IssueCard = ({ issue, mode = 'beginner', index = 0 }) => {
 
   // Simplify description for beginner mode
   const getDescription = () => {
+    if (issue.title === "Language Mismatch Detected") return issue.description;
+    
     if (mode === 'beginner' && issue.description) {
-      // Truncate overly technical descriptions
+      // Truncate overly technical descriptions but keep them reasonably long
       const desc = issue.description;
-      if (desc.length > 150) {
-        return desc.substring(0, 150) + '...';
+      if (desc.length > 250) {
+        return desc.substring(0, 250) + '...';
       }
       return desc;
     }

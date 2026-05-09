@@ -59,9 +59,25 @@ class JavaTreeAnalyzer:
         if self.loop_stack and node.type == "object_creation_expression":
              self.add_issue("info", "Object Creation in Loop", "Consider moving object creation outside the loop if possible.", node, "performance", "JAVA_PERF_002", "low")
 
+        # JAVA_PERF_003: Nested Loop Detection
+        if is_loop and len(self.loop_stack) > 1:
+            self.add_issue("critical", "Nested Loop Performance Warning", "Detected nested loop structure. This typically results in O(n^2) complexity.", node, "performance", "JAVA_PERF_003")
+
         # JAVA_BP_001: System.out.println
         if node.type == "method_invocation":
             obj = node.child_by_field_name("object")
+            name_node = node.child_by_field_name("name")
+            if name_node:
+                fn_name = self.get_text(name_node)
+                
+                # JAVA_PERF_004: System.gc()
+                if obj and self.get_text(obj) == "System" and fn_name == "gc":
+                    self.add_issue("warning", "Manual Garbage Collection Call", "System.gc() is a hint to the JVM and can cause unpredictable performance pauses.", node, "performance", "JAVA_PERF_004")
+                
+                # JAVA_PERF_005: Thread.sleep in loop
+                if self.loop_stack and obj and self.get_text(obj) == "Thread" and fn_name == "sleep":
+                    self.add_issue("warning", "Thread.sleep() in Loop", "Sleeping in a loop can cause significant performance and responsiveness issues.", node, "performance", "JAVA_PERF_005")
+
             if obj and "System.out" in self.get_text(obj):
                 name = node.child_by_field_name("name")
                 if name and self.get_text(name) == "println":
@@ -72,6 +88,12 @@ class JavaTreeAnalyzer:
                  self.add_issue("warning", f"Use of {self.get_text(obj)}", 
                                 f"{self.get_text(obj)} is legacy and synchronized. Use ArrayList or HashMap.", 
                                 node, "best_practices", "JAVA_BP_005")
+
+        # JAVA_BP_007: finalize() method
+        if node.type == "method_declaration":
+            name = node.child_by_field_name("name")
+            if name and self.get_text(name) == "finalize":
+                self.add_issue("critical", "finalize() Method Used", "finalize() is deprecated and unreliable. Use try-with-resources or cleaner APIs.", node, "best_practices", "JAVA_BP_007")
 
         # JAVA_BP_004: Missing try-with-resources
         if node.type == "variable_declarator":

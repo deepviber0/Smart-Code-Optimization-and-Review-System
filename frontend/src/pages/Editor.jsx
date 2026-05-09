@@ -6,7 +6,7 @@ import IssueCard from '../components/IssueCard';
 import StepGuidance from '../components/StepGuidance';
 import OptimizedCode from '../components/OptimizedCode';
 import CodeEditor from '../components/CodeEditor';
-import { Loader2, Download, Brain, Sparkles, BarChart3 } from 'lucide-react';
+import { Loader2, Download, Brain, Sparkles, BarChart3, Zap } from 'lucide-react';
 import generateReport from '../utils/generateReport';
 
 const Editor = () => {
@@ -40,7 +40,7 @@ return result
       // Small simulated delay for "ML processing" feel
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      const response = await axios.post('http://localhost:5000/api/analyze', {
+      const response = await axios.post('http://localhost:5002/api/analyze', {
         code,
         language
       });
@@ -203,6 +203,61 @@ return result
                 <ScoreCircle score={results.score.overall} subScores={results.score} mode={analysisMode} />
               </motion.div>
 
+              {/* NEW SECTION: TECHNICAL VERDICT & CODE DNA */}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
+                <div className="bg-surface border border-border rounded-xl p-6 overflow-hidden relative group">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Zap className="w-16 h-16 text-primary" />
+                  </div>
+                  <h3 className="text-sm uppercase tracking-widest text-primary font-bold mb-3 flex items-center gap-2">
+                    <Brain className="w-4 h-4" />
+                    Deep Intelligence Verdict
+                  </h3>
+                  <p className="text-xl text-heading font-medium leading-relaxed mb-6">
+                    "{results.verdict}"
+                  </p>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-border/50">
+                    <div>
+                      <div className="text-[10px] uppercase text-body font-bold mb-1">Complexity</div>
+                      <div className="text-sm font-semibold text-heading">{results.dna?.complexity_profile || "N/A"}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase text-body font-bold mb-1">Primary Risk</div>
+                      <div className={`text-sm font-semibold ${results.dna?.primary_risk === 'None' ? 'text-success' : 'text-error'}`}>
+                        {results.dna?.primary_risk || "None"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase text-body font-bold mb-1">Maintainability</div>
+                      <div className="text-sm font-semibold text-heading">{results.dna?.style_verdict || "N/A"}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase text-body font-bold mb-1">AI Match</div>
+                      <div className="text-sm font-semibold text-heading">{results.dna?.ai_score || "0%"}</div>
+                    </div>
+                  </div>
+
+                  {/* NEW: Language Detection Metadata */}
+                  <div className="mt-4 pt-4 border-t border-border/50 grid grid-cols-3 gap-2">
+                     <div className="bg-background/40 rounded p-2 border border-border/30">
+                        <div className="text-[9px] uppercase text-body font-bold">Selected</div>
+                        <div className="text-xs font-bold text-heading capitalize">{results.metadata?.original_selection || results.language}</div>
+                     </div>
+                     <div className={`bg-background/40 rounded p-2 border ${results.metadata?.original_selection !== results.metadata?.detected_language ? 'border-warning/50' : 'border-border/30'}`}>
+                        <div className="text-[9px] uppercase text-body font-bold">Detected</div>
+                        <div className={`text-xs font-bold capitalize ${results.metadata?.original_selection !== results.metadata?.detected_language ? 'text-warning' : 'text-heading'}`}>
+                          {results.metadata?.detected_language || "N/A"}
+                        </div>
+                     </div>
+                     <div className="bg-background/40 rounded p-2 border border-border/30">
+                        <div className="text-[9px] uppercase text-body font-bold">Confidence</div>
+                        <div className="text-xs font-bold text-primary">{results.metadata?.detection_confidence || "0%"}</div>
+                     </div>
+                  </div>
+                </div>
+              </motion.div>
+
               {/* SECTION — ML STATS (Advanced Only) */}
               {analysisMode === 'advanced' && results.mlStats && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
@@ -223,17 +278,15 @@ return result
                         </div>
                       </div>
                       <div className="bg-background rounded-lg p-4 border border-border">
-                        <div className="text-xs text-body uppercase tracking-wide mb-1">AI-Generated Prob.</div>
+                        <div className="text-xs text-body uppercase tracking-wide mb-1">Fanout Ratio</div>
                         <div className="text-2xl font-bold text-heading">
-                          {results.mlStats.ai_generated_probability 
-                            ? `${(results.mlStats.ai_generated_probability * 100).toFixed(0)}%` 
-                            : 'N/A'}
+                          {results.mlStats.ast_avg_fanout || 'N/A'}
                         </div>
                       </div>
                       <div className="bg-background rounded-lg p-4 border border-border">
-                        <div className="text-xs text-body uppercase tracking-wide mb-1">AST Nodes</div>
-                        <div className="text-sm font-medium text-heading truncate">
-                          {results.mlStats.top_nodes?.slice(0, 3).join(', ') || 'N/A'}
+                        <div className="text-xs text-body uppercase tracking-wide mb-1">Node Concentration</div>
+                        <div className="text-sm font-medium text-heading">
+                          {results.mlStats.top_node_concentration || 'N/A'}
                         </div>
                       </div>
                     </div>

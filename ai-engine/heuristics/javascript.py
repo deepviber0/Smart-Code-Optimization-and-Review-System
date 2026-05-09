@@ -10,6 +10,7 @@ class JSTreeAnalyzer:
         self.steps = []
         self.loop_nodes = []
         self.function_nesting = 0
+        self.variables_in_scope = set()
 
     def add_issue(self, severity, title, description, node, category, rule_id, confidence="high"):
         line = node.start_point[0] + 1 if node else None
@@ -56,9 +57,21 @@ class JSTreeAnalyzer:
                                    node, "performance", "JS_PERF_001")
                 
                 if any(x in func_name for x in ["getElementById", "getElementsBy", "querySelector"]):
-                    self.add_issue("warning", "DOM Query in Loop", 
-                                   "DOM lookups are expensive. Cache the element outside the loop.", 
+                    self.add_issue("warning", "Expensive DOM Query in Loop", 
+                                   "DOM lookups are extremely slow. Cache the element reference outside the loop to avoid redundant layout thrashing.", 
                                    node, "performance", "JS_PERF_002")
+
+            # JS_PERF_007: Nested Loops Detection (O(n^2))
+            if node.type in ["for_statement", "while_statement"] and len(self.loop_nodes) > 1:
+                 self.add_issue("critical", "Nested Loop Performance Warning", 
+                                "Detected nested loop structure. This typically results in O(n^2) complexity. Consider using a Map or Set for O(1) lookups.", 
+                                node, "performance", "JS_PERF_007")
+
+            # JS_PERF_008: Inefficient Filter/Find in Loop
+            if self.loop_nodes and any(x in func_name for x in [".filter", ".find", ".includes"]):
+                self.add_issue("warning", "Linear Search in Loop", 
+                               "Performing a linear search (filter/find) inside a loop creates O(n^2) complexity. Use a Map or Set for O(1) lookups.", 
+                               node, "performance", "JS_PERF_008")
 
             # JS_PERF_003: document.write
             if "document.write" in func_name:
