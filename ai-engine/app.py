@@ -134,7 +134,7 @@ def analyze():
     # 7. NEW: Deep Intelligence Verdict Generation
     verdict = "Overall, your code follows a standard structure."
     if lang_validation_issue:
-        verdict = f"CRITICAL: The code syntax does not match the selected language ({selected_language.capitalize()}). Quality cannot be assessed accurately."
+        verdict = "Selected language does not match detected code language."
     elif overall_score < 40:
         verdict = "Critical structural and logic issues were detected. Refactoring is strongly recommended to ensure stability."
     elif overall_score < 65:
@@ -166,6 +166,7 @@ def analyze():
         "steps": steps,
         "optimizedCode": optimized_code,
         "explanation": explanation,
+        "fullAnalysis": optimization_result.get("raw_output", ""),
         "metadata": {
             **metadata,
             "detected_language": detected_lang,

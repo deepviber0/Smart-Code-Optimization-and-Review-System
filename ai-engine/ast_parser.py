@@ -37,11 +37,16 @@ def parse_code(code, language):
             for child in node.children:
                 traverse(child)
                 
-        traverse(tree.root_node)
+        if tree.root_node:
+            traverse(tree.root_node)
         
         confidence = 1.0
         if total_nodes > 0:
-            confidence = 1.0 - (error_nodes / total_nodes)
+            # Use max(1, total_nodes) as an extra safety measure to satisfy static analysis/linters
+            confidence = 1.0 - (error_nodes / max(1, total_nodes))
+        else:
+            # Fallback if no nodes were processed (e.g. empty file)
+            confidence = 0.0 if not code.strip() else 0.5
             
         return tree, confidence, None
     except Exception as e:
