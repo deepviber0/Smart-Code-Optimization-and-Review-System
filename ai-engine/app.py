@@ -10,6 +10,74 @@ from optimizer import optimize_code
 app = Flask(__name__)
 CORS(app)
 
+def calculate_detailed_score(issues, ml_struct_score, confidence, is_mismatch, language):
+    """
+    Calculates a balanced score with detailed breakdown.
+    Correctness > Performance > Readability
+    """
+    breakdown = {
+        "syntax_safety": 25,
+        "readability": 20,
+        "performance": 20,
+        "best_practices": 20,
+        "structure": 15
+    }
+    deductions = []
+    
+    # 1. Syntax Safety
+    syntax_deduction = 0
+    if is_mismatch:
+        syntax_deduction = 20
+        deductions.append("Language mismatch: -20")
+    elif confidence < 0.5:
+        syntax_deduction = 15
+        deductions.append("Syntax ambiguity: -15")
+    
+    # 2. Issues Deductions
+    read_ded = 0
+    perf_ded = 0
+    bp_ded = 0
+    corr_ded = 0
+    
+    for i in issues:
+        # RULE: JavaScript optional semicolons have ZERO penalty
+        if language == 'javascript' and i.get('rule_id') == 'JS_BP_004':
+            continue
+        
+        sev = i.get('severity', 'info')
+        cat = i.get('category', 'best_practices')
+        title = i.get('title', 'Issue')
+        
+        penalty = 15 if sev == 'critical' else 7 if sev == 'warning' else 2
+        
+        # Correctness (syntax/logic) has double impact on safety
+        if cat == 'correctness': 
+            corr_ded += penalty * 1.5 # 22.5 for critical correctness
+        elif cat == 'performance': perf_ded += penalty
+        elif cat == 'readability': read_ded += penalty
+        else: bp_ded += penalty
+        
+        if len(deductions) < 8: # Limit deductions list
+            deductions.append(f"{title}: -{penalty}")
+
+    breakdown["syntax_safety"] = max(0, breakdown["syntax_safety"] - (syntax_deduction + corr_ded))
+    breakdown["readability"] = max(0, breakdown["readability"] - read_ded)
+    breakdown["performance"] = max(0, breakdown["performance"] - perf_ded)
+    breakdown["best_practices"] = max(0, breakdown["best_practices"] - bp_ded)
+    breakdown["structure"] = int((ml_struct_score / 100) * 15)
+    
+    final_score = sum(breakdown.values())
+    
+    # 3. "Already Optimized" Reward
+    # If no critical/warning issues and high confidence, boost to Excellent
+    is_very_clean = not any(i['severity'] in ['critical', 'warning'] for i in issues)
+    if is_very_clean and confidence > 0.9:
+        final_score = max(final_score, 92) # Guaranteed Excellent
+    elif is_very_clean and confidence > 0.7:
+        final_score = max(final_score, 85) # Guaranteed Good/Great
+    
+    return int(final_score), breakdown, deductions
+
 @app.route('/analyze', methods=['POST'])
 def analyze():
     data = request.json
@@ -107,22 +175,13 @@ def analyze():
             "rule_id": pattern.get("id", pattern.get("rule_id", "DEEP_OPT"))
         })
 
-    # 6. Scoring & Synthesis
+    # 6. New Scoring System
     ml_struct_score = ml_results.get("structural_quality_score", 80) if ml_results else 80
-    
-    penalty = len([i for i in issues if i['severity'] == 'critical']) * 20
-    penalty += len([i for i in issues if i['severity'] == 'warning']) * 10
-    penalty += len([i for i in issues if i['severity'] == 'info']) * 5
-    
-    base_score = max(5, 100 - penalty)
-    overall_score = int(0.6 * base_score + 0.4 * ml_struct_score)
+    overall_score, score_breakdown, score_deductions = calculate_detailed_score(
+        issues, ml_struct_score, confidence, is_critical_mismatch, selected_language
+    )
 
-    # NEW: Severe penalty for language mismatch or syntax failure
-    if is_critical_mismatch:
-        overall_score = min(overall_score, 15)
-        base_score = 10
-    elif confidence < 0.5:
-        overall_score = min(overall_score, 30)
+    if confidence < 0.5 and not is_critical_mismatch:
         issues.append({
             "severity": "critical",
             "title": "Poor Syntax Quality",
@@ -155,10 +214,8 @@ def analyze():
     result = {
         "score": {
             "overall": overall_score,
-            "correctness": min(100, base_score + 10) if not is_critical_mismatch else 10,
-            "performance": min(100, base_score - 5) if not is_critical_mismatch else 5,
-            "readability": min(100, base_score + 5) if not is_critical_mismatch else 5,
-            "bestPractices": min(100, ml_struct_score) if not is_critical_mismatch else 5
+            "breakdown": score_breakdown,
+            "deductions": score_deductions
         },
         "verdict": verdict,
         "dna": dna,

@@ -80,36 +80,81 @@ const ScoreCircle = ({ score, subScores, mode = 'beginner' }) => {
       {/* Sub-scores - Advanced mode only */}
       {mode === 'advanced' && (
         <div className="w-full space-y-4 pt-4 border-t border-border">
-          <SubScore label="Correctness" value={subScores.correctness} color={getColor(subScores.correctness)} />
-          <SubScore label="Performance" value={subScores.performance} color={getColor(subScores.performance)} />
-          <SubScore label="Readability" value={subScores.readability} color={getColor(subScores.readability)} />
-          <SubScore label="Best Practices" value={subScores.bestPractices} color={getColor(subScores.bestPractices)} />
+          <div className="flex flex-col gap-3">
+            <SubScore 
+              label="Syntax & Safety" 
+              value={subScores.breakdown?.syntax_safety || 0} 
+              total={25} 
+              color="#3B82F6" 
+            />
+            <SubScore 
+              label="Readability" 
+              value={subScores.breakdown?.readability || 0} 
+              total={20} 
+              color="#A855F7" 
+            />
+            <SubScore 
+              label="Performance" 
+              value={subScores.breakdown?.performance || 0} 
+              total={20} 
+              color="#F59E0B" 
+            />
+            <SubScore 
+              label="Best Practices" 
+              value={subScores.breakdown?.best_practices || 0} 
+              total={20} 
+              color="#EC4899" 
+            />
+            <SubScore 
+              label="Structural Design" 
+              value={subScores.breakdown?.structure || 0} 
+              total={15} 
+              color="#14B8A6" 
+            />
+          </div>
+
+          {subScores.deductions?.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <h4 className="text-[10px] uppercase tracking-widest text-body font-bold mb-2">Main Points Deducted</h4>
+              <ul className="space-y-1.5">
+                {subScores.deductions.slice(0, 5).map((d, i) => (
+                  <li key={i} className="text-xs text-error/80 flex items-start gap-1.5">
+                    <span className="mt-1 w-1 h-1 rounded-full bg-error shrink-0"></span>
+                    <span>{d}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
       {/* Beginner mode hint */}
       {mode === 'beginner' && (
         <div className="text-xs text-muted text-center mt-2">
-          Switch to Advanced mode to see detailed sub-scores
+          Switch to Advanced mode to see score breakdown
         </div>
       )}
     </div>
   );
 };
 
-const SubScore = ({ label, value, color }) => (
-  <div>
-    <div className="flex justify-between text-sm mb-1">
-      <span className="text-body">{label}</span>
-      <span className="text-heading font-medium">{value}/100</span>
+const SubScore = ({ label, value, total, color }) => {
+  const percentage = (value / total) * 100;
+  return (
+    <div>
+      <div className="flex justify-between text-[11px] mb-1">
+        <span className="text-body font-medium">{label}</span>
+        <span className="text-heading font-bold">{value}/{total}</span>
+      </div>
+      <div className="w-full bg-border/50 rounded-full h-1.5">
+        <div 
+          className="h-1.5 rounded-full transition-all duration-1000 ease-out"
+          style={{ width: `${percentage}%`, backgroundColor: color }}
+        ></div>
+      </div>
     </div>
-    <div className="w-full bg-border rounded-full h-2">
-      <div 
-        className="h-2 rounded-full transition-all duration-1000 ease-out"
-        style={{ width: `${value}%`, backgroundColor: color }}
-      ></div>
-    </div>
-  </div>
-);
+  );
+};
 
 export default ScoreCircle;

@@ -19,6 +19,9 @@ class JavaTreeAnalyzer:
     def get_text(self, node): return self.code[node.start_byte:node.end_byte]
 
     def traverse(self, node):
+        if node.type == "ERROR" or node.is_missing:
+            self.add_issue("critical", "Syntax Error", "Detected mandatory syntax error (possibly missing semicolon or brace).", node, "correctness", "JAVA_CORR_000")
+            
         is_loop = node.type in ["for_statement", "while_statement", "enhanced_for_statement", "do_statement"]
         if is_loop: self.loop_stack.append(node)
 

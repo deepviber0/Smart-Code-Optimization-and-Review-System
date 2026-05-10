@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import ScoreCircle from '../components/ScoreCircle';
@@ -16,6 +16,14 @@ const Editor = () => {
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [analysisMode, setAnalysisMode] = useState('beginner');
+  const rightPanelRef = useRef(null);
+
+  // UX Fix: Reset right panel scroll position when results or analysis mode changes
+  useEffect(() => {
+    if (rightPanelRef.current) {
+      rightPanelRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [results, analysisMode]);
 
   const sampleCode = `function calculate(x,y){
 var result
@@ -165,7 +173,10 @@ return result
       </div>
 
       {/* Right Panel - Results */}
-      <div className="w-full lg:w-1/2 flex flex-col h-full overflow-y-auto pr-2 custom-scrollbar pb-8">
+      <div 
+        ref={rightPanelRef}
+        className="w-full lg:w-1/2 flex flex-col h-full overflow-y-auto pr-2 custom-scrollbar pb-8"
+      >
         {!isAnalyzing && !results && (
           <div className="flex-grow flex flex-col items-center justify-center text-body opacity-50 h-full min-h-[400px] border border-dashed border-border rounded-xl">
             <div className="w-16 h-16 mb-4 rounded-full bg-surface flex items-center justify-center">

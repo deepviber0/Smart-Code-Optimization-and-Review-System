@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Copy, Check, GitCompare, Code } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -24,6 +24,12 @@ const OptimizedCode = ({ optimizedCode, originalCode, language, mode = 'beginner
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState('code'); // 'code' | 'diff'
   const { theme } = useTheme();
+
+  // Reset accordion state when new results arrive
+  useEffect(() => {
+    setExpanded(false);
+    setViewMode('code');
+  }, [optimizedCode]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(optimizedCode);

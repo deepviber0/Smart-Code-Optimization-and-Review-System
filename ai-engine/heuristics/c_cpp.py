@@ -20,6 +20,9 @@ class CppTreeAnalyzer:
     def get_text(self, node): return self.code[node.start_byte:node.end_byte]
 
     def traverse(self, node):
+        if node.type == "ERROR" or node.is_missing:
+            self.add_issue("critical", "Syntax Error", "Detected mandatory syntax error (possibly missing semicolon or brace).", node, "correctness", "CPP_CORR_000")
+            
         is_loop = node.type in ["for_statement", "while_statement", "do_statement", "for_range_loop"]
         if is_loop: self.loop_stack.append(node)
 

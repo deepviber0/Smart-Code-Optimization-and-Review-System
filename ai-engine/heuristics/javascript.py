@@ -161,16 +161,4 @@ def analyze_javascript(code: str, tree=None) -> Tuple[List[Dict[str, Any]], List
     analyzer = JSTreeAnalyzer(code, tree.root_node)
     analyzer.traverse(tree.root_node)
     
-    # Regex fallback for rules that are easier on text
-    # JS_BP_004: Missing semicolons
-    lines = code.splitlines()
-    for i, line in enumerate(lines, 1):
-        stripped = line.strip()
-        if stripped and not stripped.endswith((';', '{', '}', '(', ')', '//', ',', '`')):
-            if re.match(r'^(let|const|var|return|throw|yield)\b', stripped):
-                analyzer.issues.append({
-                    "severity": "info", "title": "Missing Semicolon", "description": "Semicolon missing at end of statement.",
-                    "line": i, "category": "best_practices", "rule_id": "JS_BP_004", "confidence": "medium"
-                })
-
     return analyzer.issues, []
