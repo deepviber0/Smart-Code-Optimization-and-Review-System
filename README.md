@@ -18,13 +18,13 @@ The system treats code analysis as a hybrid machine learning task:
 ### Algorithms Used
 *   **TF-IDF Vectorization**: Converts flattened Abstract Syntax Tree (AST) node sequences into numerical feature vectors.
 *   **Isolation Forest**: Used for anomaly detection by isolating "suspicious" AST sequences that differ significantly from the training corpus.
-*   **Random Forest Classifier**: Trained on distinct human vs. AI AST patterns to predict generation probability.
+*   **Gradient Boosting Classifier**: Trained on distinct human vs. AI AST patterns to predict generation probability with high precision.
 *   **AST Node Fingerprinting**: A deterministic algorithm for cross-language validation and auto-correction.
 
 ### Evaluation Metrics
 *   **Parsing Confidence Score**: Measures how successfully the Tree-sitter AST matches the selected language grammar.
 *   **Anomaly Score**: A decision function result from the Isolation Forest, mapped to a 0-100 quality scale.
-*   **Weighted Synthesis Score**: A final quality metric where **Correctness (30%) > Performance (25%) > Readability (25%) > ML Structural Quality (20%)**.
+*   **Weighted Synthesis Score**: A final quality metric where **Syntax & Safety (25%) + Readability (20%) + Performance (20%) + Best Practices (20%) + Structural Quality (15%)**.
 
 ### Technologies Tracked
 The system provides deep heuristics for:
@@ -79,12 +79,12 @@ The AI Engine processes every request through a rigorous safety-first pipeline:
 
 ### Technical Deep Dive
 1.  **Language Validation**: Uses a 1-to-1 node type fingerprinting map. For example, if `namespace_definition` is found in a file selected as "Java", it automatically switches to "C++".
-2.  **Normalization & Masking**: Uses regex to identify protected regions (Strings, Preprocessor Macros). These are replaced with unique tokens (e.g., `__PROTECTED_0__`) to prevent the optimizer from breaking non-code content.
-3.  **Duplicate Removal**: Performs a structural comparison of functions. It normalizes signatures and bodies (removing whitespace) to detect perfect duplicates, while explicitly protecting Java/C++ method overloads.
-4.  **ML Prediction**: The vectorized AST is passed to the `IsolationForest`. A negative score triggers an "Anomalous Structure" warning.
-5.  **Heuristic Analysis**: Iterates through the AST to find language-specific anti-patterns (e.g., `var` usage in JS, magic numbers in Python).
-6.  **Transparent Scoring**: Calculates a weighted average. The breakdown is injected into the response: `score = (0.7 * heuristic_score) + (0.3 * ml_structural_score)`.
-7.  **Stabilized Optimization**: Runs up to 3 passes of the `SafePipeline`. If a transformation (like `a+b` -> `a + b`) causes a syntax error, it is immediately rolled back using a snapshot system.
+2.  **Normalization & Sanitization**: Normalizes line endings and whitespace while identifying protected regions (Strings, Preprocessor Macros) to prevent optimization from breaking non-code content.
+3.  **Duplicate Removal**: Performs a structural comparison of functions. It normalizes signatures and bodies to detect perfect duplicates while protecting language-specific features like method overloads.
+4.  **ML Prediction**: The vectorized AST is passed to the `IsolationForest` and `GradientBoosting` models. A negative score triggers an "Anomalous Structure" warning.
+5.  **Heuristic Analysis**: Iterates through the AST to find language-specific anti-patterns (e.g., `var` usage in JS, mutable default arguments in Python).
+6.  **Transparent Scoring**: Calculates a weighted average based on five key dimensions. The breakdown is injected into the response for pedagogical clarity.
+7.  **Stabilized Optimization**: Runs up to 3 passes of the `SafePipeline`. Every transformation is validated against a syntax checker; if a change causes an error, it is automatically rolled back to a previous snapshot.
 
 ---
 

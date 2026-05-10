@@ -194,10 +194,14 @@ const generateReport = ({ code, language, results, analysisMode }) => {
     // Sub-score bars
     subHeader('Category Breakdown');
     const barWidth = contentWidth - 4;
-    drawScoreBar('Correctness', results.score?.correctness ?? 0, margin + 2, barWidth);
-    drawScoreBar('Performance', results.score?.performance ?? 0, margin + 2, barWidth);
-    drawScoreBar('Readability', results.score?.readability ?? 0, margin + 2, barWidth);
-    drawScoreBar('Best Practices', results.score?.bestPractices ?? 0, margin + 2, barWidth);
+    const b = results.score?.breakdown || {};
+    
+    // Normalize to 100 for the bar display
+    drawScoreBar('Correctness', Math.round((b.syntax_safety || 0) * 4), margin + 2, barWidth);
+    drawScoreBar('Performance', Math.round((b.performance || 0) * 5), margin + 2, barWidth);
+    drawScoreBar('Readability', Math.round((b.readability || 0) * 5), margin + 2, barWidth);
+    drawScoreBar('Best Practices', Math.round((b.best_practices || 0) * 5), margin + 2, barWidth);
+    drawScoreBar('Structural Design', Math.round((b.structure || 0) * 6.67), margin + 2, barWidth);
 
     y += 4;
 
