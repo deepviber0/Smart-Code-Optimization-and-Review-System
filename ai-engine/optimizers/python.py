@@ -7,7 +7,7 @@ def optimize_PY_CORR_001(code):
     return code
 
 def optimize_PY_BP_001(code):
-    return re.sub(r'(eval\(.*?\))', r'# Warning: eval() is dangerous\n\1', code)
+    return code # Handled in metadata only
 
 def optimize_PY_BP_002(code):
     return re.sub(r'==\s*None', 'is None', code)
@@ -33,7 +33,10 @@ def optimize_PY_PERF_002(code):
 def optimize_PY_READ_001(code):
     return code # Informational only
 
-def optimize_python(code, issues):
+def optimize_python(code, issues, global_applied_rules=None):
+    if global_applied_rules is None:
+        global_applied_rules = set()
+        
     optimized_code = code
     rule_map = {
         "PY_CORR_001": ("Mutable Default Fix", optimize_PY_CORR_001),
@@ -44,18 +47,11 @@ def optimize_python(code, issues):
         "PY_PERF_002": ("Enumerate Usage", optimize_PY_PERF_002),
     }
     
-    applied_descriptions = []
-    applied_rules = set()
     for issue in issues:
         rule_id = issue.get("rule_id")
-        if rule_id in rule_map and rule_id not in applied_rules:
+        if rule_id in rule_map and rule_id not in global_applied_rules:
             desc, func = rule_map[rule_id]
             optimized_code = func(optimized_code)
-            applied_descriptions.append(desc)
-            applied_rules.add(rule_id)
+            global_applied_rules.add(rule_id)
             
-    if applied_descriptions:
-        header = f"# Optimized: {', '.join(applied_descriptions)}\n"
-        return header + optimized_code
-        
     return optimized_code

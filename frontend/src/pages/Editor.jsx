@@ -20,7 +20,16 @@ const Editor = () => {
   const sampleCode = `function calculate(x,y){
 var result
 result = x+y
-for(i=0;i<100;i++){
+for(i=0;i<5;i++){
+console.log(result)
+}
+return result
+}
+
+function calculate(x,y){
+var result
+result = x+y
+for(i=0;i<5;i++){
 console.log(result)
 }
 return result

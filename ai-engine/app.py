@@ -101,10 +101,10 @@ def analyze():
     for pattern in optimization_result.get("patterns_found", []):
         issues.append({
             "severity": pattern.get("impact", "info").lower() if pattern.get("impact") != "High" else "warning",
-            "title": pattern["title"],
-            "description": pattern["reasoning"],
+            "title": pattern.get("title", "Optimization Hint"),
+            "description": pattern.get("reasoning", pattern.get("description", "Structural improvement suggested.")),
             "category": "performance",
-            "rule_id": pattern["id"]
+            "rule_id": pattern.get("id", pattern.get("rule_id", "DEEP_OPT"))
         })
 
     # 6. Scoring & Synthesis

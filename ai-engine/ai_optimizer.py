@@ -32,13 +32,9 @@ class DeepOptimizer:
         # Step 3: Optimization Generation
         optimized_code, explanation, metadata = self._generate_ai_response(code, all_findings, rule_optimized, all_patterns)
         
-        # Rule 15: Validate syntax after optimization
-        _, confidence, error = parse_code(optimized_code, self.language)
-        if error or confidence < 0.5:
-             # If optimization breaks code, fallback to rule_optimized or original
-             explanation += " (Note: Structural validation failed, using safe optimization fallback)"
-             optimized_code = rule_optimized
-             
+        # Rule 15: Validate syntax after optimization (handled by SafePipeline now)
+        # We just format the final output using the results from SafePipeline.
+        
         # Rule 13: Format final output
         final_output = self._format_final_output(optimized_code, explanation, all_findings)
         
@@ -186,20 +182,6 @@ class DeepOptimizer:
         impact = "Low"
         complexity_reduction = "None"
         
-        # Implementation: Loop Invariant Code Motion
-        if any(p['id'] == "PERF_REDUNDANT_CALC" for p in patterns):
-            calc_match = re.search(r"(\w+\s*=\s*[\d\.\+\-\*\/\s\(\)]+(;|\n)?)", optimized)
-            if calc_match:
-                calc_str = calc_match.group(1).strip()
-                lines = optimized.splitlines()
-                loop_idx = next((i for i, line in enumerate(lines) if "for" in line or "while" in line), -1)
-                if loop_idx != -1:
-                    # Rule 11: Keep comments short and beginner-friendly
-                    comment = "# Hoisted" if self.language == 'python' else "// Hoisted"
-                    optimized = optimized.replace(calc_str, f"{calc_str} {comment}") 
-                    explanation_parts.append("Moved constant calculations outside the loop.")
-                    impact = "Medium"
-
         # Implementation: Complexity reduction note
         if any(p['id'] == "PERF_NESTED_LOOPS" for p in patterns):
             impact = "High"
@@ -221,4 +203,16 @@ class DeepOptimizer:
         }
 
         return optimized, explanation, metadata
+
+    def apply_safe_rules(self, code, issues):
+        """Applies Deep AI rules safely without formatting the response dictionary."""
+        patterns = self._detect_patterns(code)
+        additional_issues = self._detect_logical_issues(code)
+        all_patterns = patterns + additional_issues
+        
+        if not all_patterns:
+            return code
+            
+        optimized_code, _, _ = self._generate_ai_response(code, all_patterns, code, all_patterns)
+        return optimized_code
 
