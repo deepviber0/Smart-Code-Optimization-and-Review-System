@@ -11,10 +11,6 @@ app = Flask(__name__)
 CORS(app)
 
 def calculate_detailed_score(issues, ml_struct_score, confidence, is_mismatch, language):
-    """
-    Calculates a balanced score with detailed breakdown.
-    Correctness > Performance > Readability
-    """
     breakdown = {
         "syntax_safety": 25,
         "readability": 20,
@@ -24,7 +20,7 @@ def calculate_detailed_score(issues, ml_struct_score, confidence, is_mismatch, l
     }
     deductions = []
     
-    # 1. Syntax Safety
+
     syntax_deduction = 0
     if is_mismatch:
         syntax_deduction = 20
@@ -33,31 +29,27 @@ def calculate_detailed_score(issues, ml_struct_score, confidence, is_mismatch, l
         syntax_deduction = 15
         deductions.append("Syntax ambiguity: -15")
     
-    # 2. Issues Deductions
+
     read_ded = 0
     perf_ded = 0
     bp_ded = 0
     corr_ded = 0
     
     for i in issues:
-        # RULE: JavaScript optional semicolons have ZERO penalty
         if language == 'javascript' and i.get('rule_id') == 'JS_BP_004':
             continue
         
         sev = i.get('severity', 'info')
         cat = i.get('category', 'best_practices')
         title = i.get('title', 'Issue')
-        
         penalty = 15 if sev == 'critical' else 7 if sev == 'warning' else 2
-        
-        # Correctness (syntax/logic) has double impact on safety
         if cat == 'correctness': 
             corr_ded += penalty * 1.5 # 22.5 for critical correctness
         elif cat == 'performance': perf_ded += penalty
         elif cat == 'readability': read_ded += penalty
         else: bp_ded += penalty
         
-        if len(deductions) < 8: # Limit deductions list
+        if len(deductions) < 8:
             deductions.append(f"{title}: -{penalty}")
 
     breakdown["syntax_safety"] = max(0, breakdown["syntax_safety"] - (syntax_deduction + corr_ded))
@@ -68,8 +60,7 @@ def calculate_detailed_score(issues, ml_struct_score, confidence, is_mismatch, l
     
     final_score = sum(breakdown.values())
     
-    # 3. "Already Optimized" Reward
-    # If no critical/warning issues and high confidence, boost to Excellent
+    # Boost score for clean code
     is_very_clean = not any(i['severity'] in ['critical', 'warning'] for i in issues)
     if is_very_clean and confidence > 0.9:
         final_score = max(final_score, 92) # Guaranteed Excellent
@@ -87,7 +78,7 @@ def analyze():
     issues = []
     steps = []
     
-    # 1. Language Detection & Validation
+    # Language Detection
     lang_metadata = validate_language(code, selected_language)
     lang_validation_issue = lang_metadata.get("issue")
     detected_lang = lang_metadata.get("detected", "unknown")
@@ -112,12 +103,12 @@ def analyze():
             "how": lang_validation_issue["step"]["how"]
         })
         
-    # 2. AST Parsing
+    # AST Parsing
     tree, confidence, error = parse_code(code, selected_language)
     if error:
         print(f"AST Parse Error: {error}")
         
-    # 3. ML Prediction & Structural Analysis
+    # ML Prediction
     ml_results = {
         "structural_quality_score": 80,
         "cyclomatic_complexity": 1,
@@ -141,18 +132,16 @@ def analyze():
                 "rule_id": "ML_ANOMALY"
             })
             
-    # 4. Deep Heuristic Analysis (Performance & Logic)
-    # Base heuristics
+    # Heuristic Analysis
     base_issues, base_steps = analyze_base(code, tree)
     issues.extend(base_issues)
     
-    # Language-specific heuristics (Updated with performance focus)
+
     lang_analyzer = get_heuristics(selected_language)
     lang_issues, lang_steps = lang_analyzer(code, tree)
     issues.extend(lang_issues)
 
-    # 5. Optimization & AI Generation
-    # We now pass issues to the optimizer which will synthesize findings
+    # Optimization
     optimization_result = optimize_code(code, selected_language, issues)
     
     optimized_code = optimization_result.get("code", code)
@@ -165,7 +154,7 @@ def analyze():
         "confidence_score": 0.85
     })
     
-    # NEW: Add findings from DeepOptimizer back to issues so they appear in the UI
+    # Feed optimizer findings back into issues
     for pattern in optimization_result.get("patterns_found", []):
         issues.append({
             "severity": pattern.get("impact", "info").lower() if pattern.get("impact") != "High" else "warning",
@@ -175,7 +164,7 @@ def analyze():
             "rule_id": pattern.get("id", pattern.get("rule_id", "DEEP_OPT"))
         })
 
-    # 6. New Scoring System
+    # Scoring
     ml_struct_score = ml_results.get("structural_quality_score", 80) if ml_results else 80
     overall_score, score_breakdown, score_deductions = calculate_detailed_score(
         issues, ml_struct_score, confidence, is_critical_mismatch, selected_language
@@ -190,7 +179,7 @@ def analyze():
             "rule_id": "LOW_CONFIDENCE"
         })
     
-    # 7. NEW: Deep Intelligence Verdict Generation
+    # Verdict Generation
     verdict = "Overall, your code follows a standard structure."
     if lang_validation_issue:
         verdict = "Selected language does not match detected code language."
@@ -203,7 +192,7 @@ def analyze():
     else:
         verdict = "Excellent! Your code demonstrates professional-grade structure and efficiency."
 
-    # Code DNA Profile (Synthesis)
+
     dna = {
         "complexity_profile": "Linear" if ml_results.get("cyclomatic_complexity", 0) < 5 else "Moderate" if ml_results.get("cyclomatic_complexity", 0) < 15 else "High-Complexity",
         "primary_risk": ml_results.get("danger_level", "None").capitalize(),

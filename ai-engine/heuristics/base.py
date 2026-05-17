@@ -6,8 +6,7 @@ def analyze_base(code: str, tree=None) -> Tuple[List[Dict[str, Any]], List[Dict[
     steps = []
     lines = code.splitlines()
 
-    # GEN_BP_001: Empty blocks
-    # Matches { } with nothing but whitespace inside
+
     empty_block_pattern = re.compile(r'\{\s*\}')
     for i, line in enumerate(lines, 1):
         if empty_block_pattern.search(line):
@@ -20,7 +19,7 @@ def analyze_base(code: str, tree=None) -> Tuple[List[Dict[str, Any]], List[Dict[
                 "rule_id": "GEN_BP_001"
             })
 
-    # GEN_BP_002: TODO/FIXME markers
+
     todo_pattern = re.compile(r'\b(TODO|FIXME|HACK|XXX)\b', re.IGNORECASE)
     for i, line in enumerate(lines, 1):
         match = todo_pattern.search(line)
@@ -34,10 +33,10 @@ def analyze_base(code: str, tree=None) -> Tuple[List[Dict[str, Any]], List[Dict[
                 "rule_id": "GEN_BP_002"
             })
 
-    # GEN_BP_003: Excessive nesting (indentation check)
+
     for i, line in enumerate(lines, 1):
         indent = len(line) - len(line.lstrip())
-        # Assuming 4 spaces or 1 tab per level
+
         if indent > 16: # > 4 levels deep
              issues.append({
                 "severity": "warning",
@@ -49,7 +48,7 @@ def analyze_base(code: str, tree=None) -> Tuple[List[Dict[str, Any]], List[Dict[
             })
              break # One warning per file is enough for nesting
 
-    # GEN_BP_005: Line too long
+
     for i, line in enumerate(lines, 1):
         if len(line) > 120:
             issues.append({

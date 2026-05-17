@@ -14,10 +14,6 @@ LANGUAGE_MAP = {
 }
 
 def parse_code(code, language):
-    """
-    Parses the code into an AST using the appropriate Tree-sitter language.
-    Returns (tree, success_confidence, error_message).
-    """
     if language not in LANGUAGE_MAP:
         return None, 0.0, f"Unsupported language: {language}"
         
@@ -25,7 +21,7 @@ def parse_code(code, language):
         parser = tree_sitter.Parser(LANGUAGE_MAP[language])
         tree = parser.parse(bytes(code, 'utf8'))
         
-        # Calculate parsing confidence based on ERROR nodes
+
         error_nodes = 0
         total_nodes = 0
         
@@ -42,10 +38,8 @@ def parse_code(code, language):
         
         confidence = 1.0
         if total_nodes > 0:
-            # Use max(1, total_nodes) as an extra safety measure to satisfy static analysis/linters
             confidence = 1.0 - (error_nodes / max(1, total_nodes))
         else:
-            # Fallback if no nodes were processed (e.g. empty file)
             confidence = 0.0 if not code.strip() else 0.5
             
         return tree, confidence, None

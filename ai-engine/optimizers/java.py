@@ -1,7 +1,7 @@
 import re
 
 def optimize_JAVA_CORR_001(code):
-    return code # Risky: assumes logger exists
+    return code
 
 def optimize_JAVA_CORR_002(code):
     pattern = r'(\w+)\s*==\s*"(.*?)"'
@@ -9,13 +9,13 @@ def optimize_JAVA_CORR_002(code):
     return re.sub(pattern, replacement, code)
 
 def optimize_JAVA_CORR_004(code):
-    return code # Risky: appends to end of file incorrectly
+    return code
 
 def optimize_JAVA_PERF_001(code):
-    return code # Handled by DeepOptimizer
+    return code
 
 def optimize_JAVA_BP_001(code):
-    return code # Risky: assumes logger exists
+    return code
 
 def optimize_JAVA_BP_002(code):
     return re.sub(r'catch\s*\(Exception\s+e\)', r'catch (IOException e)', code)

@@ -21,51 +21,48 @@ class SafePipeline:
         self.legacy_rules_applied = set()
         
     def normalize_code(self, code):
-        """Normalize line endings, tabs/spaces."""
         code = code.replace('\r\n', '\n')
         code = code.replace('\t', '    ')
-        # Simple trailing whitespace removal
+        # Trailing whitespace removal
         code = '\n'.join([line.rstrip() for line in code.splitlines()])
         return code + '\n'
 
     def run(self, code, selected_language, issues):
         try:
-            # Step 0: Performance Check
+
             if not self.validators.check_file_size(code):
                 return self._fail_safe(code, "File exceeds max optimization size limit.", issues)
 
-            # Step 1: Detect Language
+
             detected_lang, score = detect_language_ast(code)
             if detected_lang and detected_lang != selected_language and score > 0.6:
                 self.language = detected_lang
                 self.validators.language = detected_lang
 
-            # Step 2: Normalize
+
             code = self.normalize_code(code)
             self.metadata["snapshots"]["original"] = code
 
-            # Step 3: Structural check
+
             valid, msg = self.validators.validate_syntax(code)
             if not valid:
                 return self._fail_safe(code, f"Structural check failed before optimization: {msg}", issues)
 
-            # Step 4: Mask protected regions
-            # Conservative duplicate removal BEFORE masking/optimization
+            # Duplicate removal and mask protected regions
             code = self.validators.remove_duplicate_functions(code)
             masked_code, masks = self.validators.mask_protected_regions(code)
 
-            # Step 5: Optimization Pipeline (Rule Priorities)
+
             optimized_code = self._run_optimizations(masked_code, issues)
-            
-            # Step 6: Restore Masks
+
             restored_code = self.validators.restore_protected_regions(optimized_code, masks)
             
-            # Step 6.5: Final Cleanup (Noise removal)
+
             restored_code = self._cleanup_code(restored_code)
             
             self.metadata["snapshots"]["optimized"] = restored_code
 
-            # Step 7: Final Sanity Check & Diff Validation
+            # Final validation
             diff_valid, diff_msg = self.validators.validate_diff(code, restored_code)
             if not diff_valid:
                 return self._fail_safe(code, f"Transformation diff failed: {diff_msg}", issues)
@@ -74,8 +71,7 @@ class SafePipeline:
             if not syntax_valid:
                 return self._fail_safe(code, f"Final syntax check failed: {syntax_msg}", issues)
 
-            # Step 8: Safe Formatter Fallback (we assume the code is somewhat formatted, if not we keep it)
-            # Formatting is skipped if it breaks the code, but here our regex rules preserve basic formatting.
+
 
             return {
                 "code": restored_code,
@@ -99,7 +95,6 @@ class SafePipeline:
         }
 
     def _cleanup_code(self, code):
-        """Final cleanup: remove duplicate blank lines, trailing whitespace."""
         lines = [line.rstrip() for line in code.splitlines()]
         cleaned_lines = []
         for i, line in enumerate(lines):
@@ -109,15 +104,14 @@ class SafePipeline:
         return "\n".join(cleaned_lines) + "\n"
 
     def _safe_apply(self, rule_name, func, code, *args):
-        """Applies a single rule safely."""
         self.validators.check_timeout()
         try:
             new_code = func(code, *args)
             if new_code == code:
                 self.metadata["skipped_rules"].append(rule_name)
-                return code # No change
-                
-            # Quick syntax check on masked code
+                return code
+
+
             valid, msg = self.validators.validate_syntax(new_code)
             diff_ok, _ = self.validators.validate_diff(code, new_code)
             
@@ -142,7 +136,7 @@ class SafePipeline:
             previous_code = code
             passes += 1
             
-            # Apply legacy rules safely (passing state across loops)
+
             if self.language == 'javascript':
                 code = self._safe_apply("Legacy_JS", js_optimize, code, issues, self.legacy_rules_applied)
             elif self.language == 'python':
@@ -152,9 +146,9 @@ class SafePipeline:
             elif self.language in ['c', 'cpp']:
                 code = self._safe_apply("Legacy_CPP", cpp_optimize, code, issues, self.legacy_rules_applied)
 
-            # Apply Deep Optimizer (safe rules only)
+            # Deep Optimizer pass
             deep_optimizer = DeepOptimizer(self.language)
-            # Capture patterns found by DeepOptimizer specifically
+
             new_patterns = deep_optimizer._detect_patterns(code) + deep_optimizer._detect_logical_issues(code)
             for p in new_patterns:
                 if p not in self.findings:

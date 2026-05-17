@@ -25,23 +25,22 @@ class JavaTreeAnalyzer:
         is_loop = node.type in ["for_statement", "while_statement", "enhanced_for_statement", "do_statement"]
         if is_loop: self.loop_stack.append(node)
 
-        # Rule Checks
+
         
-        # JAVA_CORR_001: Empty catch block
+
         if node.type == "catch_clause":
             body = node.child_by_field_name("body")
-            if body and body.type == "block" and len(body.children) <= 2: # { } usually has 2 tokens
-                # Check if it's really empty (ignoring comments)
+            if body and body.type == "block" and len(body.children) <= 2:
                 if len([c for c in body.children if not c.type.startswith("comment") and c.type not in ["{", "}"]]) == 0:
                     self.add_issue("critical", "Empty Catch Block", "Exceptions should never be swallowed silently.", node, "correctness", "JAVA_CORR_001")
 
-        # JAVA_BP_002: Catching generic Exception
+
         if node.type == "catch_formal_parameter":
             type_node = node.child_by_field_name("type")
             if type_node and self.get_text(type_node) == "Exception":
                 self.add_issue("warning", "Catching Generic Exception", "Catch specific exceptions instead of 'Exception'.", node, "best_practices", "JAVA_BP_002")
 
-        # JAVA_CORR_002: String comparison with ==
+
         if node.type == "binary_expression":
             operator = self.get_text(node.child_by_field_name("operator") or node.children[1])
             if operator == "==":
@@ -50,34 +49,33 @@ class JavaTreeAnalyzer:
                 if left.type == "string_literal" or right.type == "string_literal":
                     self.add_issue("warning", "String Comparison with ==", "Use .equals() for string value comparison.", node, "correctness", "JAVA_CORR_002")
 
-        # JAVA_PERF_001: String concatenation in loop
+
         if self.loop_stack and node.type == "assignment_expression":
             left = node.child_by_field_name("left")
             operator = self.get_text(node.children[1])
             if operator == "+=":
-                # This is a heuristic, we assume it might be a string if it's +=
                 self.add_issue("warning", "String Concatenation in Loop", "Use StringBuilder for efficient string building in loops.", node, "performance", "JAVA_PERF_001", "medium")
 
-        # JAVA_PERF_002: Object creation in loop
+
         if self.loop_stack and node.type == "object_creation_expression":
              self.add_issue("info", "Object Creation in Loop", "Consider moving object creation outside the loop if possible.", node, "performance", "JAVA_PERF_002", "low")
 
-        # JAVA_PERF_003: Nested Loop Detection
+
         if is_loop and len(self.loop_stack) > 1:
             self.add_issue("critical", "Nested Loop Performance Warning", "Detected nested loop structure. This typically results in O(n^2) complexity.", node, "performance", "JAVA_PERF_003")
 
-        # JAVA_BP_001: System.out.println
+
         if node.type == "method_invocation":
             obj = node.child_by_field_name("object")
             name_node = node.child_by_field_name("name")
             if name_node:
                 fn_name = self.get_text(name_node)
                 
-                # JAVA_PERF_004: System.gc()
+
                 if obj and self.get_text(obj) == "System" and fn_name == "gc":
                     self.add_issue("warning", "Manual Garbage Collection Call", "System.gc() is a hint to the JVM and can cause unpredictable performance pauses.", node, "performance", "JAVA_PERF_004")
                 
-                # JAVA_PERF_005: Thread.sleep in loop
+
                 if self.loop_stack and obj and self.get_text(obj) == "Thread" and fn_name == "sleep":
                     self.add_issue("warning", "Thread.sleep() in Loop", "Sleeping in a loop can cause significant performance and responsiveness issues.", node, "performance", "JAVA_PERF_005")
 
@@ -86,19 +84,19 @@ class JavaTreeAnalyzer:
                 if name and self.get_text(name) == "println":
                     self.add_issue("info", "System.out.println Detected", "Use a logger (like SLF4J or Log4j) for better log management.", node, "best_practices", "JAVA_BP_001")
 
-            # JAVA_BP_005: Vector/Hashtable usage
+
             if obj and self.get_text(obj) in ["Vector", "Hashtable"]:
                  self.add_issue("warning", f"Use of {self.get_text(obj)}", 
                                 f"{self.get_text(obj)} is legacy and synchronized. Use ArrayList or HashMap.", 
                                 node, "best_practices", "JAVA_BP_005")
 
-        # JAVA_BP_007: finalize() method
+
         if node.type == "method_declaration":
             name = node.child_by_field_name("name")
             if name and self.get_text(name) == "finalize":
                 self.add_issue("critical", "finalize() Method Used", "finalize() is deprecated and unreliable. Use try-with-resources or cleaner APIs.", node, "best_practices", "JAVA_BP_007")
 
-        # JAVA_BP_004: Missing try-with-resources
+
         if node.type == "variable_declarator":
              val = node.child_by_field_name("value")
              if val and val.type == "object_creation_expression":
@@ -135,8 +133,7 @@ def analyze_java(code: str, tree=None) -> Tuple[List[Dict[str, Any]], List[Dict[
     analyzer = JavaTreeAnalyzer(code, tree.root_node)
     analyzer.traverse(tree.root_node)
     
-    # Regex fallbacks
-    # JAVA_BP_003: Hardcoded credentials
+
     secret_pattern = re.compile(r'(password|passwd|secret|api_key|token|apikey)\s*=\s*"[^"]+"', re.IGNORECASE)
     for i, line in enumerate(code.splitlines(), 1):
         if secret_pattern.search(line):

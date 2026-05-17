@@ -26,15 +26,15 @@ class CppTreeAnalyzer:
         is_loop = node.type in ["for_statement", "while_statement", "do_statement", "for_range_loop"]
         if is_loop: self.loop_stack.append(node)
 
-        # Rule Checks
+
         
-        # CPP_SEC_001: gets() usage
+
         if node.type == "call_expression":
             fn_node = node.child_by_field_name("function")
             if fn_node:
                 fn_name = self.get_text(fn_node)
                 
-                # Tracking allocations for leak detection
+
                 if fn_name == "malloc":
                     self.has_allocation = True
                 if fn_name == "free":
@@ -43,19 +43,19 @@ class CppTreeAnalyzer:
                 if fn_name == "gets":
                     self.add_issue("critical", "Dangerous Function gets() Used", "gets() has no bounds checking and is removed from modern C standards.", node, "best_practices", "CPP_SEC_001")
                 
-                # CPP_SEC_002: strcpy()
+
                 if fn_name == "strcpy":
                     self.add_issue("critical", "strcpy Without Bounds Check", "Use strncpy() or strlcpy() to prevent buffer overflows.", node, "best_practices", "CPP_SEC_002")
 
-                # CPP_SEC_005: strcat()
+
                 if fn_name == "strcat":
                     self.add_issue("critical", "strcat Without Bounds Check", "Use strncat() to prevent buffer overflows.", node, "best_practices", "CPP_SEC_005")
 
-                # CPP_SEC_006: rand() usage
+
                 if fn_name == "rand":
                     self.add_issue("warning", "Use of rand()", "rand() is not cryptographically secure. Use arc4random() or modern C++ <random>.", node, "best_practices", "CPP_SEC_006")
 
-                # CPP_SEC_004: printf format string vulnerability
+
                 if fn_name in ["printf", "sprintf", "fprintf"]:
                     args = node.child_by_field_name("arguments")
                     if args and len(args.children) > 1:
@@ -63,25 +63,25 @@ class CppTreeAnalyzer:
                          if first_arg and first_arg.type != "string_literal":
                              self.add_issue("critical", "Format String Vulnerability", "Passing a non-literal string as format is dangerous.", first_arg, "best_practices", "CPP_SEC_004")
 
-                # CPP_PERF_002: Allocation in loop
+
                 if self.loop_stack and fn_name in ["malloc", "calloc", "realloc"]:
                      self.add_issue("warning", "Memory Allocation in Loop", "Frequent allocations in loops cause performance bottlenecks.", node, "performance", "CPP_PERF_002")
 
-        # CPP_PERF_003: Nested Loop Detection
+
         if is_loop and len(self.loop_stack) > 1:
             self.add_issue("critical", "Nested Loop Performance Warning", "Detected nested loop structure. This typically results in O(n^2) complexity.", node, "performance", "CPP_PERF_003")
 
-        # CPP_BP_002: using namespace std (C++)
+
         if self.language in ["cpp", "c++"] and node.type == "using_directive":
              if "std" in self.get_text(node):
                  self.add_issue("warning", "Global 'using namespace std'", "Pollutes the global namespace. Consider using 'std::' explicitly.", node, "best_practices", "CPP_BP_002", "medium")
 
-        # CPP_BP_001: Raw pointers vs smart pointers (C++ only)
+
         if self.language in ["cpp", "c++"]:
             if node.type == "new_expression":
                 self.add_issue("warning", "Raw 'new' Used", "Consider using std::make_unique or std::make_shared instead of raw 'new'.", node, "best_practices", "CPP_BP_001", "medium")
 
-        # CPP_PERF_001: Large objects by value (C++ only)
+
         if self.language in ["cpp", "c++"] and node.type == "parameter_declaration":
              type_node = node.child_by_field_name("type")
              if type_node and type_node.type in ["type_identifier", "qualified_identifier"]:
@@ -108,21 +108,47 @@ def analyze_c_cpp(code: str, tree=None, language: str = "c") -> Tuple[List[Dict[
     
     analyzer.traverse(tree.root_node)
     
-    # CPP_CORR_003: Memory Leak Detection
+
     if analyzer.has_allocation and not analyzer.has_deallocation:
         analyzer.issues.append({
             "severity": "critical", "title": "Potential Memory Leak", "description": "Detected memory allocation (malloc) without any visible deallocation (free).",
             "line": 1, "category": "correctness", "rule_id": "CPP_CORR_003", "confidence": "medium"
         })
     
-    # Regex fallback
-    # CPP_SEC_003: scanf without width
+
     if "%s" in code and "scanf" in code:
         for i, line in enumerate(code.splitlines(), 1):
             if re.search(r'scanf\s*\(\s*"[^"]*%s', line):
                  analyzer.issues.append({
                     "severity": "critical", "title": "scanf %s Without Width", "description": "Always specify buffer size in scanf, e.g., %10s.",
                     "line": i, "category": "best_practices", "rule_id": "CPP_SEC_003", "confidence": "high"
+                })
+
+
+    if "void main" in code:
+        for i, line in enumerate(code.splitlines(), 1):
+            if re.search(r'\bvoid\s+main\b', line):
+                 analyzer.issues.append({
+                    "severity": "critical", "title": "Invalid main() Signature", "description": "In C/C++, main() must return int.",
+                    "line": i, "category": "correctness", "rule_id": "CPP_CORR_004", "confidence": "high"
+                })
+
+
+    if re.search(r'#include\s*<(?:stdiio\.h|studio\.h)>', code):
+        for i, line in enumerate(code.splitlines(), 1):
+            if re.search(r'#include\s*<(?:stdiio\.h|studio\.h)>', line):
+                 analyzer.issues.append({
+                    "severity": "critical", "title": "Misspelled Header", "description": "Detected likely misspelling of stdio.h.",
+                    "line": i, "category": "correctness", "rule_id": "CPP_CORR_005", "confidence": "high"
+                })
+
+
+    if re.search(r'\bprint\s*\(', code):
+        for i, line in enumerate(code.splitlines(), 1):
+            if re.search(r'\bprint\s*\(', line):
+                 analyzer.issues.append({
+                    "severity": "critical", "title": "Use printf instead of print", "description": "C/C++ uses printf for console output, not print.",
+                    "line": i, "category": "correctness", "rule_id": "CPP_CORR_006", "confidence": "high"
                 })
 
     return analyzer.issues, []

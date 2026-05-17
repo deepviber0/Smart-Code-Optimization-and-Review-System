@@ -1,8 +1,6 @@
 # Smart Code Optimization and Review System
 > An automated, language-aware pedagogical code feedback and optimization platform using AST parsing, heuristics, and ML models.
 
-
-
 ---
 
 ## 1. Methodology
@@ -62,7 +60,7 @@ The AI engine is trained on a **Synthetic AST Sequence Dataset** composed of thr
 
 ### Data Preprocessing & Pipeline Technical Deep Dive
 1.  **AST Flattening**: The `Tree-sitter` concrete syntax tree is traversed using a depth-first search (DFS) to produce a "Semantic Fingerprint" — a space-separated sequence of named node types. This removes line numbers and formatting, focusing purely on logic.
-2.  **TF-IDF Vectorization**: We employ a `TfidfVectorizer(ngram_range=(1, 2), max_features=1000)` to capture both individual nodes and common binary relationships (e.g., `for_statement` followed by `assignment`).
+2.  **TF-IDF Vectorization**: Two separate vectorizers are used — a unigram `TfidfVectorizer(ngram_range=(1, 1), max_features=200)` for anomaly detection, and a trigram `TfidfVectorizer(ngram_range=(1, 3), max_features=300)` for AI-generated code detection, capturing rhythmic patterns in node sequences.
 3.  **High-Dimensional Feature Engineering**: Beyond the raw sequence, the `ASTFeatureVector` class extracts:
     *   **Max Depth & Total Nodes**: Measures tree complexity.
     *   **Cyclomatic Complexity**: Incremented for every branching node (`if`, `for`, `while`, `case`, `&&`, `||`, `? :`).

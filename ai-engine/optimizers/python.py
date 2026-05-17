@@ -7,7 +7,7 @@ def optimize_PY_CORR_001(code):
     return code
 
 def optimize_PY_BP_001(code):
-    return code # Handled in metadata only
+    return code
 
 def optimize_PY_BP_002(code):
     return re.sub(r'==\s*None', 'is None', code)
@@ -23,7 +23,7 @@ def optimize_PY_BP_004(code):
     return re.sub(pattern, replace_cred, code, flags=re.IGNORECASE)
 
 def optimize_PY_PERF_001(code):
-    return code # Handled by DeepOptimizer
+    return code
 
 def optimize_PY_PERF_002(code):
     pattern = r'for\s+(\w+)\s+in\s+range\s*\(\s*len\s*\(\s*(\w+)\s*\)\s*\)\s*:'

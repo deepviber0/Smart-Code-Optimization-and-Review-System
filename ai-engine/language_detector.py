@@ -1,16 +1,8 @@
 from ast_parser import parse_code
 
-# ---------------------------------------------------------------------------
-# LANGUAGE FINGERPRINTS
-# Each entry is (node_type, weight) where weight reflects how *uniquely*
-# diagnostic that node type is for the language.
-#   1.0 = almost exclusive to this language
-#   0.7 = strong signal, but occasionally seen in others
-#   0.4 = moderate signal (shared constructs, but still useful)
-# ---------------------------------------------------------------------------
+
 LANGUAGE_FINGERPRINTS = {
     'javascript': {
-        # Root / structural
         'program':                     1.0,  # JS/TS root node
         'statement_block':             0.7,  # { ... } in JS
         'expression_statement':        0.5,
@@ -22,12 +14,12 @@ LANGUAGE_FINGERPRINTS = {
         'generator_function':          1.0,  # function*
         'class_declaration':           0.5,
         'class_body':                  0.5,
-        # Functions / closures
+
         'arrow_function':              1.0,  # () => {}
         'function':                    0.7,
         'method_definition':           0.8,
         'call_expression':             0.5,
-        # Modern JS
+
         'template_string':             1.0,  # `template ${literal}`
         'template_substitution':       1.0,
         'tagged_template_expression':  1.0,
@@ -36,23 +28,23 @@ LANGUAGE_FINGERPRINTS = {
         'optional_chain':              1.0,  # obj?.prop
         'await_expression':            0.9,
         'yield_expression':            0.9,
-        # Destructuring
+
         'object_pattern':              0.9,  # {a, b} = obj
         'array_pattern':               0.9,  # [a, b] = arr
         'shorthand_property_identifier_pattern': 1.0,
-        # Modules
+
         'export_statement':            1.0,
         'import_statement':            0.8,
         'import_specifier':            1.0,
         'export_specifier':            1.0,
         'namespace_import':            1.0,  # import * as
-        # Async
+
         'async':                       0.8,
-        # JSX (bonus)
+
         'jsx_element':                 1.0,
         'jsx_self_closing_element':    1.0,
         'jsx_expression':              1.0,
-        # Other diagnostics
+
         'typeof':                      0.9,  # typeof x
         'void_operator':               0.9,  # void 0
         'delete_statement':            0.8,
@@ -63,7 +55,7 @@ LANGUAGE_FINGERPRINTS = {
         'null':                        0.6,  # null literal node
         'undefined':                   0.9,
         'console':                     0.9,
-        # JS-specific keywords/tokens
+
         'let':                         1.0,
         'const':                       1.0,
         'async':                       0.9,
@@ -71,26 +63,25 @@ LANGUAGE_FINGERPRINTS = {
     },
 
     'python': {
-        # Root / structural
         'module':                      1.0,  # Python root node
         'block':                       1.0,  # indentation block
         'pass_statement':              1.0,  # pass
-        # Definitions
+
         'function_definition':         1.0,  # def
         'class_definition':            0.9,
         'decorated_definition':        1.0,  # @decorator
         'lambda':                      1.0,
-        # Imports
+
         'import_statement':            0.7,
         'import_from_statement':       1.0,  # from x import y
         'aliased_import':              0.9,
         'wildcard_import':             1.0,  # from x import *
-        # Comprehensions
+
         'list_comprehension':          1.0,
         'dictionary_comprehension':    1.0,
         'set_comprehension':           1.0,
         'generator_expression':        1.0,
-        # Control flow
+
         'for_statement':               0.6,
         'while_statement':             0.5,
         'if_statement':                0.5,
@@ -99,13 +90,13 @@ LANGUAGE_FINGERPRINTS = {
         'with_statement':              1.0,  # with open(...) as f:
         'match_statement':             1.0,  # Python 3.10+ match
         'case_clause':                 1.0,
-        # Exception handling
+
         'try_statement':               0.6,
         'except_clause':               1.0,  # except (not catch)
         'except_group_clause':         1.0,
         'raise_statement':             1.0,
         'finally_clause':              0.7,
-        # Python-specific expressions
+
         'yield':                       0.9,
         'yield_expression':            0.9,
         'await':                       0.8,
@@ -114,13 +105,13 @@ LANGUAGE_FINGERPRINTS = {
         'comparison_operator':         0.7,
         'augmented_assignment':        0.7,
         'walrus_operator':             1.0,  # :=
-        # Data structures
+
         'list':                        0.5,
         'dictionary':                  0.7,
         'set':                         0.7,
         'tuple':                       0.8,
         'pair':                        0.7,  # dict key:value
-        # Identifiers
+
         'keyword_argument':            1.0,  # func(a=1)
         'default_parameter':           1.0,
         'typed_parameter':             1.0,  # def f(x: int)
@@ -129,11 +120,11 @@ LANGUAGE_FINGERPRINTS = {
         'none':                        1.0,  # None literal
         'true':                        0.8,  # True
         'false':                       0.8,  # False
-        # Docstrings / f-strings
+
         'string':                      0.4,
         'concatenated_string':         0.8,
         'interpolation':               0.9,  # f-string {}
-        # Misc
+
         'global_statement':            1.0,
         'nonlocal_statement':          1.0,
         'delete_statement':            0.8,  # del x
@@ -365,10 +356,7 @@ LANGUAGE_FINGERPRINTS = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Keyword fingerprints (text-level, language → list of (pattern, weight))
-# Higher weight = stronger signal
-# ---------------------------------------------------------------------------
+
 KEYWORD_FINGERPRINTS = {
     'javascript': [
         # High-confidence exclusives
@@ -685,21 +673,16 @@ KEYWORD_FINGERPRINTS = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Negative evidence: if these are found, reduce score for a language
-# E.g. semicolons everywhere → unlikely Python
-# ---------------------------------------------------------------------------
 NEGATIVE_EVIDENCE = {
-    'python':     ['};', '->', '::', 'public class', 'void ', '#include', 'cout', 'endl', '===', '!--'],
-    'javascript': ['#include', 'System.out', 'public class', 'using namespace', 'cout <<', 'scanf(', 'def ', 'elif ', 'NULL'],
-    'java':       ['#include', 'cout', 'using namespace', 'printf(', 'malloc(', 'free(', 'def ', 'elif '],
-    'c':          ['using namespace', 'cout <<', 'System.out', 'public class', 'def ', 'elif ', '=>', '`', 'let ', 'const ', '===', '!==', 'console.log'],
-    'cpp':        ['System.out', 'public class', 'def ', 'elif ', 'console.log', 'require('],
+    'python':     ['};', '->', '::', 'public class', 'void ', '#include', 'cout', 'endl', '===', '!--', 'function ', 'console.log', 'let ', 'const ', '=>', 'System.out'],
+    'javascript': ['#include', 'System.out', 'public class', 'using namespace', 'cout <<', 'scanf(', 'def ', 'elif ', 'NULL', 'public void', 'std::', 'printf(', 'String[] args'],
+    'java':       ['#include', 'cout', 'using namespace', 'printf(', 'malloc(', 'free(', 'def ', 'elif ', 'function ', 'console.log', '===', '!==', 'let ', 'const ', '=>', 'document.', 'window.', 'pass'],
+    'c':          ['using namespace', 'cout <<', 'System.out', 'public class', 'def ', 'elif ', '=>', '`', 'let ', 'const ', '===', '!==', 'console.log', 'function ', 'public void', 'String[] args'],
+    'cpp':        ['System.out', 'public class', 'def ', 'elif ', 'console.log', 'require(', 'function ', '===', '!==', 'let ', '=>', 'public void', 'String[] args', 'stdio.h', 'printf('],
 }
 
 
 def collect_node_types(tree):
-    """Walks the AST and returns the set of all node types."""
     node_types = set()
     if not tree or not tree.root_node:
         return node_types
@@ -714,11 +697,6 @@ def collect_node_types(tree):
 
 
 def compute_fingerprint_score(node_types, language, tree=None):
-    """
-    Weighted fingerprint scoring: sums weights of matched nodes,
-    normalised against the maximum possible weight for that language.
-    Adds a root-node bonus when the root matches.
-    """
     fp = LANGUAGE_FINGERPRINTS.get(language, {})
     if not fp:
         return 0.0
@@ -727,7 +705,7 @@ def compute_fingerprint_score(node_types, language, tree=None):
     matched_weight = sum(w for node, w in fp.items() if node in node_types)
     score = matched_weight / total_weight if total_weight else 0.0
 
-    # Root-node bonus
+
     if tree and fp:
         expected_root = next(iter(fp))  # first key = root node
         if tree.root_node.type == expected_root:
@@ -737,11 +715,6 @@ def compute_fingerprint_score(node_types, language, tree=None):
 
 
 def compute_keyword_score(code_text, language):
-    """
-    Weighted keyword scan. Returns (raw_positive_score, negative_penalty).
-    raw_positive_score ∈ [0, 1] based on weighted keyword hits.
-    negative_penalty   ∈ [0, 0.5] subtracted from final language score.
-    """
     kw_list   = KEYWORD_FINGERPRINTS.get(language, [])
     neg_list  = NEGATIVE_EVIDENCE.get(language, [])
 
@@ -751,10 +724,8 @@ def compute_keyword_score(code_text, language):
     total_possible = sum(w for _, w in kw_list)
     hit_weight     = sum(w for pattern, w in kw_list if pattern in code_text)
 
-    # Normalise to [0, 1]; cap so no single super-word can carry everything
     raw_score = min(1.0, hit_weight / (total_possible * 0.25))
 
-    # Negative evidence — each hit deducts 0.06, capped at 0.40
     neg_hits    = sum(1 for pattern in neg_list if pattern in code_text)
     neg_penalty = min(0.40, neg_hits * 0.06)
 
@@ -762,13 +733,6 @@ def compute_keyword_score(code_text, language):
 
 
 def detect_language_ast(code):
-    """
-    Multi-signal language detection:
-      - Weighted keyword fingerprinting (with negative evidence)
-      - AST parse confidence
-      - Weighted node-type fingerprinting
-    Returns (best_language, best_score).
-    """
     best_lang  = None
     best_score = -1.0
     code_text  = code.strip()
@@ -781,13 +745,12 @@ def detect_language_ast(code):
         if tree is not None and err is None:
             node_types = collect_node_types(tree)
             fp_score   = compute_fingerprint_score(node_types, lang, tree)
-            # Weights: 35% keyword, 10% parse-conf, 55% AST fingerprint
             combined = 0.35 * kw_score + 0.10 * conf + 0.55 * fp_score
         else:
-            # Falls back to keyword signal only (penalised for failed parse)
+
             combined = 0.55 * kw_score
 
-        # Apply negative-evidence penalty AFTER blending
+
         combined = max(0.0, combined - neg_penalty)
 
         if combined > best_score:
@@ -798,10 +761,6 @@ def detect_language_ast(code):
 
 
 def validate_language(code, selected_language):
-    """
-    Validates whether the submitted code matches the selected language.
-    Returns (metadata_dict).
-    """
     best_lang, best_score = detect_language_ast(code)
 
     if not best_lang:
@@ -813,7 +772,7 @@ def validate_language(code, selected_language):
             "score": 0.0
         }
 
-    # Score the user's explicitly selected language for comparison
+
     code_text             = code.strip()
     kw_score, neg_penalty = compute_keyword_score(code_text, selected_language)
     tree, sel_conf, err   = parse_code(code, selected_language)
@@ -835,15 +794,15 @@ def validate_language(code, selected_language):
         "issue": None
     }
 
-    # 1. Perfect match or selected language is clearly correct
-    if selected_language == best_lang or sel_score > 0.50: # Tightened from 0.65
+
+    if selected_language == best_lang or sel_score > 0.50:
         return metadata
 
-    # 2. C ↔ C++ ambiguity: honour the user's choice if the score isn't abysmal
-    if selected_language in ('c', 'cpp') and best_lang in ('c', 'cpp') and sel_score > 0.20:
+
+    if selected_language in ('c', 'cpp') and best_lang in ('c', 'cpp') and abs(best_score - sel_score) < 0.15:
         return metadata
 
-    # 3. Override only when detection is meaningfully better or selected is clearly wrong
+
     if best_score > sel_score + 0.15 or sel_score < 0.20:
         issue = {
             "severity": "critical",

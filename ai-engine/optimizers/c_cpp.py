@@ -6,7 +6,7 @@ def optimize_CPP_SEC_001(code):
     return re.sub(pattern, replacement, code)
 
 def optimize_CPP_SEC_002(code):
-    return code # Risky: sizeof(\1) fails if it is a pointer
+    return code
 
 def optimize_CPP_SEC_003(code):
     pattern = r'scanf\s*\(\s*"%s"\s*,\s*(.*?)\)'
@@ -19,15 +19,38 @@ def optimize_CPP_SEC_004(code):
     return re.sub(pattern, replacement, code)
 
 def optimize_CPP_CORR_001(code):
-    return code # Logic is complex, handled by heuristics
+    return code
 
 def optimize_CPP_CORR_002(code):
-    return code # Risky: can break expressions if malloc is nested
+    return code
 
 def optimize_CPP_CORR_003(code):
     pattern = r'\bint\s+(\w+)\s*;'
     replacement = r'int \1 = 0;'
     return re.sub(pattern, replacement, code)
+
+def optimize_CPP_CORR_004(code):
+    code = re.sub(r'\bvoid\s+main\b', r'int main', code)
+    if 'int main' in code and 'return' not in code:
+        indent = '    '
+        for line in code.splitlines():
+            stripped = line.lstrip()
+            if stripped and not stripped.startswith('#') and not stripped.startswith('{') and not stripped.startswith('}') and not stripped.startswith('int main') and not stripped.startswith('void main'):
+                indent = line[:len(line) - len(stripped)]
+                if indent:
+                    break
+        code = re.sub(r'\}\s*$', indent + 'return 0;\n}', code)
+    return code
+
+def optimize_CPP_CORR_005(code):
+    pattern = r'#include\s*<(?:stdiio\.h|studio\.h)>'
+    replacement = r'#include <stdio.h>'
+    return re.sub(pattern, replacement, code)
+
+def optimize_CPP_CORR_006(code):
+    code = re.sub(r'\bprint\s*\((.*?)\)\s*$', r'printf(\1);', code, flags=re.MULTILINE)
+    code = re.sub(r'\bprint\s*\(', r'printf(', code)
+    return code
 
 def optimize_CPP_BP_001(code):
     pattern = r'(\w+)\s*\*\s*(\w+)\s*=\s*new\s+(\w+)\((.*?)\);'
@@ -40,7 +63,7 @@ def optimize_CPP_PERF_001(code):
     return re.sub(pattern, replacement, code)
 
 def optimize_CPP_PERF_002(code):
-    return code # Handled by DeepOptimizer
+    return code
 
 def optimize_c_cpp(code, issues, global_applied_rules=None):
     if global_applied_rules is None:
@@ -54,6 +77,9 @@ def optimize_c_cpp(code, issues, global_applied_rules=None):
         "CPP_SEC_004": ("Format Safety", optimize_CPP_SEC_004),
         "CPP_CORR_002": ("Null Check Injection", optimize_CPP_CORR_002),
         "CPP_CORR_003": ("Var Initialization", optimize_CPP_CORR_003),
+        "CPP_CORR_004": ("Fix void main", optimize_CPP_CORR_004),
+        "CPP_CORR_005": ("Fix misspelled stdio", optimize_CPP_CORR_005),
+        "CPP_CORR_006": ("Fix print to printf", optimize_CPP_CORR_006),
         "CPP_BP_001": ("Smart Pointer Fix", optimize_CPP_BP_001),
         "CPP_PERF_001": ("Const Ref Optimization", optimize_CPP_PERF_001),
     }

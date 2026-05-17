@@ -8,10 +8,7 @@ from collections import Counter
 import math
 
 
-# ---------------------------------------------------------------------------
-# Rich dummy corpora — representative of real-world AST sequences
-# In production: replace with pre-trained model binaries (joblib.load)
-# ---------------------------------------------------------------------------
+# Training corpora for AST sequence analysis
 
 _GOOD_HUMAN_CODE = [
     # Python: typical utility functions
@@ -84,21 +81,18 @@ _AI_GENERATED_CODE = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# Feature extraction constants
-# ---------------------------------------------------------------------------
 
-# Node types that are hazardous / semantically suspicious
+
 DANGEROUS_NODES = frozenset({
     'eval', 'exec', 'gets', 'system', 'popen', 'strcpy', 'strcat',
-    'sprintf', 'vsprintf', 'scanf',               # C buffer risks
-    'shell', 'subprocess', 'pickle', 'marshal',   # Python exec risks
-    'reflect', 'invoke', 'classloader',           # Java reflection
-    'innerHTML', 'outerHTML', 'document_write',   # JS XSS risks
+    'sprintf', 'vsprintf', 'scanf',
+    'shell', 'subprocess', 'pickle', 'marshal',
+    'reflect', 'invoke', 'classloader',
+    'innerHTML', 'outerHTML', 'document_write',
     'eval_expression', 'dynamic_import',
 })
 
-# Node types associated with high cyclomatic complexity
+
 COMPLEXITY_NODES = frozenset({
     'if_statement', 'elif_clause', 'else_clause',
     'for_statement', 'while_statement', 'do_statement',
@@ -111,7 +105,7 @@ COMPLEXITY_NODES = frozenset({
     'break_statement', 'continue_statement', 'goto_statement',
 })
 
-# Nodes that indicate good structural practice
+
 QUALITY_NODES = frozenset({
     'function_definition', 'function_declaration', 'method_declaration',
     'method_definition', 'class_definition', 'class_declaration',
@@ -128,19 +122,15 @@ QUALITY_NODES = frozenset({
     'enum_declaration', 'enum_specifier',
 })
 
-# Nodes that strongly suggest AI-generated boilerplate
+
 AI_SIGNAL_NODES = frozenset({
     'try_statement', 'catch_clause', 'except_clause', 'finally_clause',
-    'return_statement', 'string',                 # docstrings everywhere
-    'expression_statement',                        # uniform statement rhythm
+    'return_statement', 'string',
+    'expression_statement',
 })
 
 
 class ASTFeatureVector:
-    """
-    Encapsulates all extracted features from one AST.
-    Separates concerns: raw sequence (for TF-IDF), numerical features (for RF/GB).
-    """
     __slots__ = (
         'sequence', 'node_counts', 'max_depth', 'total_nodes',
         'cyclomatic_complexity', 'dangerous_node_count',
@@ -157,27 +147,19 @@ class ASTFeatureVector:
 
 
 class MLAnalyzer:
-    """
-    Multi-signal code analysis engine combining:
-      1. TF-IDF + Isolation Forest  → structural anomaly detection
-      2. TF-IDF + Gradient Boosting → AI-generated code detection
-      3. 13-dimensional hand-crafted feature vector → structural quality score
-    """
 
     def __init__(self):
-        # Unigram vectorizer for anomaly detection
         self.vectorizer = TfidfVectorizer(
             token_pattern=r'(?u)\b\w+\b',
             max_features=200,
             sublinear_tf=True,
             ngram_range=(1, 1),
         )
-        # Bigram vectorizer for AI detection (captures rhythmic patterns)
         self.bigram_vectorizer = TfidfVectorizer(
             token_pattern=r'(?u)\b\w+\b',
             max_features=300,
             sublinear_tf=True,
-            ngram_range=(1, 3),   # unigram + bigram + trigram
+            ngram_range=(1, 3),
         )
         self.anomaly_detector = IsolationForest(
             n_estimators=200,
@@ -185,7 +167,7 @@ class MLAnalyzer:
             max_samples='auto',
             random_state=42,
         )
-        # Calibrated so predict_proba gives proper probabilities
+
         _base_ai = GradientBoostingClassifier(
             n_estimators=100,
             max_depth=4,
@@ -195,20 +177,13 @@ class MLAnalyzer:
         )
         self.ai_detector = CalibratedClassifierCV(_base_ai, cv=3, method='isotonic')
 
-        # Scaler for the hand-crafted feature vector
         self.quality_scaler = StandardScaler()
 
         self.is_trained = False
 
-    # -----------------------------------------------------------------------
-    # Feature extraction
-    # -----------------------------------------------------------------------
+
 
     def extract_features(self, tree) -> ASTFeatureVector:
-        """
-        Full feature extraction from a parsed AST tree.
-        Returns an ASTFeatureVector with all signals populated.
-        """
         fv = ASTFeatureVector()
 
         sequence        = []
@@ -254,25 +229,20 @@ class MLAnalyzer:
         fv.total_nodes    = total
         fv.max_depth      = max_depth
 
-        # Cyclomatic complexity: count decision-point nodes
         fv.cyclomatic_complexity = sum(
             node_counts[n] for n in COMPLEXITY_NODES if n in node_counts
         )
 
-        # Dangerous node count
         fv.dangerous_node_count = sum(
             node_counts[n] for n in DANGEROUS_NODES if n in node_counts
         )
 
-        # Quality node ratio
         quality_hits = sum(node_counts[n] for n in QUALITY_NODES if n in node_counts)
         fv.quality_node_ratio = quality_hits / max(total, 1)
 
-        # AI signal ratio (density of suspiciously uniform patterns)
         ai_hits = sum(node_counts[n] for n in AI_SIGNAL_NODES if n in node_counts)
         fv.ai_signal_ratio = ai_hits / max(total, 1)
 
-        # Structural shape metrics
         fv.depth_breadth_ratio = (
             max_depth / math.log2(max(total, 2))
         ) if total > 1 else 0.0
@@ -285,7 +255,6 @@ class MLAnalyzer:
 
         fv.leaf_ratio = leaf_count / max(total, 1)
 
-        # Top-node concentration (Gini-like: how dominated by the most common node)
         if total > 0:
             top_count = node_counts.most_common(1)[0][1]
             fv.top_node_concentration = top_count / total
@@ -295,9 +264,6 @@ class MLAnalyzer:
         return fv
 
     def _build_quality_feature_vector(self, fv: ASTFeatureVector):
-        """
-        Returns a 13-dim numpy array of hand-crafted quality signals.
-        """
         return np.array([
             fv.total_nodes,
             fv.max_depth,
@@ -310,36 +276,27 @@ class MLAnalyzer:
             fv.avg_fanout,
             fv.leaf_ratio,
             fv.top_node_concentration,
-            # Ratio of complexity nodes to quality nodes (high = spaghetti)
             fv.cyclomatic_complexity / max(fv.quality_node_ratio * fv.total_nodes, 1),
-            # Error-handling coverage (try/catch ratio to function defs)
             (fv.node_counts.get('try_statement', 0) + fv.node_counts.get('with_statement', 0))
             / max(fv.node_counts.get('function_definition', 0)
                   + fv.node_counts.get('function_declaration', 0)
                   + fv.node_counts.get('method_declaration', 0), 1),
         ], dtype=np.float64)
 
-    # -----------------------------------------------------------------------
-    # Training
-    # -----------------------------------------------------------------------
+
 
     def train_dummy_models(self):
-        """
-        Trains all models on the extended dummy AST corpus.
-        In production: replace with joblib.load('models/...') calls.
-        """
         all_sequences = _GOOD_HUMAN_CODE + _BAD_CODE + _AI_GENERATED_CODE
-        # Repeat to give the vectorizers enough vocabulary
         all_sequences_aug = all_sequences * 3
 
         X_uni   = self.vectorizer.fit_transform(all_sequences_aug)
         X_bi    = self.bigram_vectorizer.fit_transform(all_sequences_aug)
 
-        # Anomaly detector: trained on normal code only
+
         n_good  = len(_GOOD_HUMAN_CODE) * 3
         self.anomaly_detector.fit(X_uni[:n_good])
 
-        # AI detector labels: 0 = human (good + bad), 1 = AI
+
         labels = (
             [0] * (len(_GOOD_HUMAN_CODE) * 3)
             + [0] * (len(_BAD_CODE) * 3)
@@ -347,60 +304,37 @@ class MLAnalyzer:
         )
         self.ai_detector.fit(X_bi, labels)
 
-        # Quality scaler: fit on a simple representative feature matrix
-        # (In production this would be fit on real labelled samples)
         dummy_features = np.random.default_rng(42).random((60, 13))
         self.quality_scaler.fit(dummy_features)
 
         self.is_trained = True
 
-    # -----------------------------------------------------------------------
-    # Scoring helpers
-    # -----------------------------------------------------------------------
+
 
     def _compute_structural_score(self, fv: ASTFeatureVector, anomaly_raw: float) -> int:
-        """
-        Converts the Isolation Forest decision score + hand-crafted signals
-        into a 0–100 structural quality score.
-        """
-        # Base: normalise the IF decision function (typically −0.2 … +0.2)
         base = min(100, max(0, int((anomaly_raw + 0.25) * 200)))
 
-        # Depth penalty: deeply nested code → harder to maintain
         if fv.max_depth > 8:
             base -= (fv.max_depth - 8) * 3
 
-        # Complexity penalty
         if fv.cyclomatic_complexity > 15:
             base -= (fv.cyclomatic_complexity - 15) * 2
 
-        # Danger penalty: immediate deduction per dangerous node
         base -= fv.dangerous_node_count * 10
 
-        # Quality bonus: reward well-structured code
         base += int(fv.quality_node_ratio * 20)
 
-        # Uniqueness bonus: diverse node types = richer logic
         base += int(fv.unique_node_ratio * 15)
 
-        # Concentration penalty: dominated by one node = repetitive / boilerplate
         if fv.top_node_concentration > 0.35:
             base -= int((fv.top_node_concentration - 0.35) * 40)
 
         return min(100, max(0, base))
 
-    def _compute_ai_probability(
-        self,
-        fv: ASTFeatureVector,
-        model_prob: float,
-    ) -> float:
-        """
-        Blends model probability with hand-crafted heuristics for
-        a more robust AI-generated estimate.
-        """
+    def _compute_ai_probability(self, fv: ASTFeatureVector, model_prob: float) -> float:
         heuristic = 0.0
 
-        # High error-handling density with low complexity = AI over-engineering
+
         eh_count   = fv.node_counts.get('try_statement', 0) + \
                      fv.node_counts.get('except_clause', 0) + \
                      fv.node_counts.get('catch_clause', 0)
@@ -410,26 +344,22 @@ class MLAnalyzer:
         if func_count > 0 and (eh_count / func_count) > 1.5:
             heuristic += 0.15
 
-        # Low unique-node ratio = uniform / template-like structure
+
         if fv.unique_node_ratio < 0.15:
             heuristic += 0.12
 
-        # High AI signal ratio
+
         if fv.ai_signal_ratio > 0.30:
             heuristic += 0.10
 
-        # Very high top-node concentration = repetitive boilerplate
+
         if fv.top_node_concentration > 0.40:
             heuristic += 0.10
 
-        # Blend: 65% model, 35% heuristic (model is calibrated, heuristic is supplementary)
         blended = 0.65 * model_prob + 0.35 * min(1.0, heuristic)
         return round(min(1.0, max(0.0, blended)), 4)
 
     def _compute_danger_level(self, fv: ASTFeatureVector) -> str:
-        """
-        Returns a human-readable danger level string.
-        """
         d = fv.dangerous_node_count
         if d == 0:
             return "none"
@@ -443,9 +373,6 @@ class MLAnalyzer:
             return "critical"
 
     def _compute_maintainability(self, fv: ASTFeatureVector) -> str:
-        """
-        Heuristic maintainability label based on depth + complexity + diversity.
-        """
         score = 0
         if fv.max_depth <= 5:          score += 2
         elif fv.max_depth <= 8:        score += 1
@@ -460,14 +387,9 @@ class MLAnalyzer:
         if score >= 2:  return "fair"
         return "poor"
 
-    # -----------------------------------------------------------------------
-    # Public API
-    # -----------------------------------------------------------------------
+
 
     def analyze(self, tree, language: str) -> dict:
-        """
-        Full analysis of one AST. Returns a rich result dictionary.
-        """
         if not self.is_trained:
             self.train_dummy_models()
 
@@ -477,76 +399,63 @@ class MLAnalyzer:
             fv.sequence        = "empty"
             fv.bigram_sequence = "empty"
 
-        # --- Anomaly detection (unigram TF-IDF)
+
         X_uni             = self.vectorizer.transform([fv.sequence])
         anomaly_score_raw = self.anomaly_detector.decision_function(X_uni)[0]
         is_anomalous      = bool(self.anomaly_detector.predict(X_uni)[0] == -1)
         structural_score  = self._compute_structural_score(fv, anomaly_score_raw)
 
-        # --- AI detection (trigram TF-IDF + calibrated GB)
+
         X_bi       = self.bigram_vectorizer.transform([fv.bigram_sequence])
         model_prob = self.ai_detector.predict_proba(X_bi)[0][1]
         ai_prob    = self._compute_ai_probability(fv, model_prob)
 
-        # --- Danger & maintainability
+
         danger_level    = self._compute_danger_level(fv)
         maintainability = self._compute_maintainability(fv)
 
-        # --- Top node types (diagnostic)
+
         top_nodes = [
             {"node": n, "count": c}
             for n, c in fv.node_counts.most_common(10)
         ]
 
-        # --- Dangerous nodes found
+
         dangerous_found = [
             n for n in DANGEROUS_NODES if fv.node_counts.get(n, 0) > 0
         ]
 
         return {
-            # Primary quality signals
-            "structural_quality_score":  structural_score,       # 0–100
-            "ai_generated_probability":  ai_prob,                # 0.0–1.0
-            "danger_level":              danger_level,            # none/low/medium/high/critical
-            "maintainability":           maintainability,         # excellent/good/fair/poor
-
-            # AST shape
+            "structural_quality_score":  structural_score,
+            "ai_generated_probability":  ai_prob,
+            "danger_level":              danger_level,
+            "maintainability":           maintainability,
             "ast_node_count":            fv.total_nodes,
             "ast_max_depth":             fv.max_depth,
             "ast_unique_node_types":     len(fv.node_counts),
             "ast_avg_fanout":            round(fv.avg_fanout, 3),
             "ast_leaf_ratio":            round(fv.leaf_ratio, 3),
 
-            # Complexity
             "cyclomatic_complexity":     fv.cyclomatic_complexity,
             "top_node_concentration":    round(fv.top_node_concentration, 3),
             "unique_node_ratio":         round(fv.unique_node_ratio, 3),
             "quality_node_ratio":        round(fv.quality_node_ratio, 3),
 
-            # Danger
             "dangerous_node_count":      fv.dangerous_node_count,
             "dangerous_nodes_found":     dangerous_found,
 
-            # Anomaly
             "is_anomalous":              is_anomalous,
             "anomaly_decision_score":    round(float(anomaly_score_raw), 4),
 
-            # Diagnostics
             "top_10_node_types":         top_nodes,
             "language":                  language,
         }
 
     def analyze_batch(self, trees_and_langs: list[tuple]) -> list[dict]:
-        """
-        Analyze multiple ASTs. trees_and_langs is a list of (tree, language) tuples.
-        Returns a list of result dicts in the same order.
-        """
         if not self.is_trained:
             self.train_dummy_models()
         return [self.analyze(tree, lang) for tree, lang in trees_and_langs]
 
 
-# ---------------------------------------------------------------------------
-# Module-level singleton (same interface as before)
-# ---------------------------------------------------------------------------
+
 ml_analyzer = MLAnalyzer()
