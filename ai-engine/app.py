@@ -20,16 +20,14 @@ def calculate_detailed_score(issues, ml_struct_score, confidence, is_mismatch, l
     }
     deductions = []
     
-
     syntax_deduction = 0
     if is_mismatch:
-        syntax_deduction = 20
-        deductions.append("Language mismatch: -20")
+        syntax_deduction = 25
+        deductions.append("Language mismatch: -25")
     elif confidence < 0.5:
         syntax_deduction = 15
         deductions.append("Syntax ambiguity: -15")
     
-
     read_ded = 0
     perf_ded = 0
     bp_ded = 0
@@ -44,7 +42,7 @@ def calculate_detailed_score(issues, ml_struct_score, confidence, is_mismatch, l
         title = i.get('title', 'Issue')
         penalty = 15 if sev == 'critical' else 7 if sev == 'warning' else 2
         if cat == 'correctness': 
-            corr_ded += penalty * 1.5 # 22.5 for critical correctness
+            corr_ded += penalty * 1.5
         elif cat == 'performance': perf_ded += penalty
         elif cat == 'readability': read_ded += penalty
         else: bp_ded += penalty
@@ -66,6 +64,10 @@ def calculate_detailed_score(issues, ml_struct_score, confidence, is_mismatch, l
         final_score = max(final_score, 92) # Guaranteed Excellent
     elif is_very_clean and confidence > 0.7:
         final_score = max(final_score, 85) # Guaranteed Good/Great
+        
+    if is_mismatch:
+        final_score = min(final_score, 40)
+        deductions.append("Critical mismatch cap: Capped at 40")
     
     return int(final_score), breakdown, deductions
 

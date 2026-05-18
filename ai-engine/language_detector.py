@@ -1,3 +1,4 @@
+import re
 from ast_parser import parse_code
 
 
@@ -669,6 +670,15 @@ KEYWORD_FINGERPRINTS = {
         ('co_return ',           1.0),
         ('concept ',             1.0),
         ('requires ',            1.0),
+        ('iostream',              1.0),
+        ('<iostream>',            1.0),
+        ('<vector>',              1.0),
+        ('<algorithm>',           1.0),
+        ('<map>',                 1.0),
+        ('<string>',              1.0),
+        ('std::cout',             1.0),
+        ('std::cin',              1.0),
+        ('std::endl',             1.0),
     ],
 }
 
@@ -677,8 +687,8 @@ NEGATIVE_EVIDENCE = {
     'python':     ['};', '->', '::', 'public class', 'void ', '#include', 'cout', 'endl', '===', '!--', 'function ', 'console.log', 'let ', 'const ', '=>', 'System.out'],
     'javascript': ['#include', 'System.out', 'public class', 'using namespace', 'cout <<', 'scanf(', 'def ', 'elif ', 'NULL', 'public void', 'std::', 'printf(', 'String[] args'],
     'java':       ['#include', 'cout', 'using namespace', 'printf(', 'malloc(', 'free(', 'def ', 'elif ', 'function ', 'console.log', '===', '!==', 'let ', 'const ', '=>', 'document.', 'window.', 'pass'],
-    'c':          ['using namespace', 'cout <<', 'System.out', 'public class', 'def ', 'elif ', '=>', '`', 'let ', 'const ', '===', '!==', 'console.log', 'function ', 'public void', 'String[] args'],
-    'cpp':        ['System.out', 'public class', 'def ', 'elif ', 'console.log', 'require(', 'function ', '===', '!==', 'let ', '=>', 'public void', 'String[] args', 'stdio.h', 'printf('],
+    'c':          ['using namespace', 'cout <<', 'System.out', 'public class', 'def ', 'elif ', '=>', '`', 'let ', 'const ', '===', '!--', 'console.log', 'function ', 'public void', 'String[] args', 'iostream', '<iostream>', 'std::', 'nullptr', 'template--', 'template <', 'class ', 'public:', 'private:', 'vector<'],
+    'cpp':        ['System.out', 'public class', 'def ', 'elif ', 'console.log', 'require(', 'function ', '===', '!==', 'let ', '=>', 'public void', 'String[] args', 'stdio.h', 'printf(', 'stdlib.h', 'string.h', 'math.h', 'stdint.h', 'stdbool.h', 'malloc(', 'free('],
 }
 
 
@@ -794,10 +804,43 @@ def validate_language(code, selected_language):
         "issue": None
     }
 
+    if selected_language in ('c', 'cpp') or best_lang in ('c', 'cpp'):
+        # Strict C vs C++ hallmark analysis using robust regex patterns
+        cpp_hallmark_patterns = [
+            r'std::', r'\bcout\b', r'\bcin\b', r'\bendl\b', r'\busing\s+namespace\b', r'\bnullptr\b', 
+            r'\bstatic_cast\b', r'\bdynamic_cast\b', r'\breinterpret_cast\b', r'\bconst_cast\b',
+            r'#include\s*<iostream>', r'#include\s*<vector>', r'#include\s*<algorithm>', r'#include\s*<map>',
+            r'#include\s*<queue>', r'#include\s*<stack>', r'#include\s*<string>',
+            r'\btemplate\s*<', r'\bclass\s+\w+', r'\bpublic\s*:', r'\bprivate\s*:', r'\bprotected\s*:',
+            r'\bconstexpr\b', r'\bvirtual\s+', r'\boverride\b'
+        ]
+        has_cpp_hallmarks = any(re.search(pat, code_text) for pat in cpp_hallmark_patterns)
+        
+        c_hallmark_patterns = [
+            r'\bstdio\.h\b', r'\bstdlib\.h\b', r'\bstring\.h\b', r'\bmath\.h\b', r'\bstdint\.h\b', r'\bstdbool\.h\b',
+            r'\bprintf\s*\(', r'\bscanf\s*\(', r'\bmalloc\s*\(', r'\bfree\s*\(', r'\bcalloc\s*\(', r'\brealloc\s*\('
+        ]
+        has_c_hallmarks = any(re.search(pat, code_text) for pat in c_hallmark_patterns)
+
+        if selected_language == 'cpp' and not has_cpp_hallmarks and has_c_hallmarks:
+            # Code is C, but C++ was selected
+            best_lang = 'c'
+            best_score = 0.90
+            sel_score = 0.40
+            metadata["detected"] = best_lang
+            metadata["confidence"] = best_score
+            metadata["score"] = sel_score
+        elif selected_language == 'c' and has_cpp_hallmarks:
+            # Code is C++, but C was selected
+            best_lang = 'cpp'
+            best_score = 0.90
+            sel_score = 0.40
+            metadata["detected"] = best_lang
+            metadata["confidence"] = best_score
+            metadata["score"] = sel_score
 
     if selected_language == best_lang or sel_score > 0.50:
         return metadata
-
 
     if selected_language in ('c', 'cpp') and best_lang in ('c', 'cpp') and abs(best_score - sel_score) < 0.15:
         return metadata
